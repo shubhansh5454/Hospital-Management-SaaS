@@ -13,6 +13,7 @@ import Billing from './components/Billing.tsx';
 import Pharmacy from './components/Pharmacy.tsx';
 import Laboratory from './components/Laboratory.tsx';
 import Inventory from './components/Inventory.tsx';
+import Notifications from './components/Notifications.tsx';
 import { HeartPulse } from 'lucide-react';
 
 
@@ -62,6 +63,7 @@ function AppContent() {
       {activeTab === 'pharmacy' && <Pharmacy />}
       {activeTab === 'laboratory' && <Laboratory />}
       {activeTab === 'inventory' && <Inventory />}
+      {activeTab === 'notifications' && <Notifications />}
     </Layout>
 
 
