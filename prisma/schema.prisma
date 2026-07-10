@@ -18,6 +18,7 @@ model User {
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
   appointments  Appointment[]
   doctorProfile DoctorProfile?
+  emrRecords    EmrRecord[]
 
   @@map("users")
 }
@@ -32,8 +33,10 @@ model Patient {
   bloodGroup     String?       @map("blood_group")
   address        String?
   medicalHistory String?       @map("medical_history")
+  allergies      String?       @map("allergies")
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
   appointments   Appointment[]
+  emrRecords     EmrRecord[]
 
   @@map("patients")
 }
@@ -93,5 +96,49 @@ model DoctorLeave {
   doctorProfile   DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("doctor_leaves")
+}
+
+model EmrRecord {
+  id                Int      @id @default(autoincrement())
+  patientId         Int      @map("patient_id")
+  doctorId          Int      @map("doctor_id")
+  appointmentId     Int?     @map("appointment_id")
+  date              String   // YYYY-MM-DD
+  
+  // Vitals
+  bloodPressure     String?  @map("blood_pressure")
+  heartRate         Int?     @map("heart_rate")
+  temperature       String?  @map("temperature")
+  respiratoryRate   Int?     @map("respiratory_rate")
+  weight            String?  @map("weight")
+  height            String?  @map("height")
+  bmi               String?  @map("bmi")
+  oxygenSaturation  Int?     @map("oxygen_saturation")
+
+  // Diagnosis
+  diagnosis         String   // comma-separated list or JSON/text
+
+  // SOAP Notes
+  soapSubjective    String?  @map("soap_subjective")
+  soapObjective     String?  @map("soap_objective")
+  soapAssessment    String?  @map("soap_assessment")
+  soapPlan          String?  @map("soap_plan")
+
+  // Prescriptions
+  prescriptions     String?  // Store as serialized JSON array of { medication, dosage, frequency, duration, instructions }
+
+  // Follow-up Notes
+  followUpNotes     String?  @map("follow_up_notes")
+  followUpDate      String?  @map("follow_up_date") // YYYY-MM-DD
+
+  // Attachments
+  attachments       String?  // Store as serialized JSON array of { name, size, type, data } (base64 dataurl or url)
+
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  doctor            User     @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("emr_records")
 }
 

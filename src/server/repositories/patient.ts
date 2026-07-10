@@ -16,6 +16,7 @@ export class PatientRepository {
         bloodGroup: data.bloodGroup ?? null,
         address: data.address ?? null,
         medicalHistory: data.medicalHistory ?? null,
+        allergies: data.allergies ?? null,
       },
     });
   }
@@ -52,6 +53,20 @@ export class PatientRepository {
             date: 'desc',
           },
         },
+        emrRecords: {
+          include: {
+            doctor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
   }
@@ -82,6 +97,7 @@ export class PatientRepository {
         bloodGroup: data.bloodGroup,
         address: data.address,
         medicalHistory: data.medicalHistory,
+        allergies: data.allergies,
       },
     });
   }

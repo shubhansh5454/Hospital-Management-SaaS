@@ -9,6 +9,7 @@ export const createPatientSchema = z.object({
   bloodGroup: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
   medicalHistory: z.string().nullable().optional(),
+  allergies: z.string().nullable().optional(),
 });
 
 export const updatePatientSchema = z.object({
@@ -20,6 +21,7 @@ export const updatePatientSchema = z.object({
   bloodGroup: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
   medicalHistory: z.string().nullable().optional(),
+  allergies: z.string().nullable().optional(),
 });
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;

@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard.tsx';
 import Doctors from './components/Doctors.tsx';
 import Patients from './components/Patients.tsx';
 import Appointments from './components/Appointments.tsx';
+import Emr from './components/Emr.tsx';
 import { HeartPulse } from 'lucide-react';
 
 const queryClient = new QueryClient({
@@ -45,6 +46,7 @@ function AppContent() {
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       {activeTab === 'dashboard' && <Dashboard />}
+      {activeTab === 'emr' && <Emr />}
       {activeTab === 'doctors' && <Doctors />}
       {activeTab === 'patients' && <Patients />}
       {activeTab === 'appointments' && <Appointments />}

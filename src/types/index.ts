@@ -19,7 +19,9 @@ export interface Patient {
   bloodGroup?: string;
   address?: string;
   medicalHistory?: string;
+  allergies?: string;
   createdAt: Date;
+  emrRecords?: EmrRecord[];
 }
 
 export interface Appointment {
@@ -68,4 +70,73 @@ export interface DoctorUser {
   role: UserRole;
   createdAt: string;
   doctorProfile?: DoctorProfile;
+}
+
+export interface PrescriptionItem {
+  medication: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+}
+
+export interface AttachmentItem {
+  name: string;
+  size: number;
+  type: string;
+  data?: string; // base64 or download url
+}
+
+export interface EmrRecord {
+  id: number;
+  patientId: number;
+  doctorId: number;
+  appointmentId?: number;
+  date: string; // YYYY-MM-DD
+  
+  // Vitals
+  bloodPressure?: string;
+  heartRate?: number;
+  temperature?: string;
+  respiratoryRate?: number;
+  weight?: string;
+  height?: string;
+  bmi?: string;
+  oxygenSaturation?: number;
+
+  // Diagnosis
+  diagnosis: string;
+
+  // SOAP Notes
+  soapSubjective?: string;
+  soapObjective?: string;
+  soapAssessment?: string;
+  soapPlan?: string;
+
+  // Prescriptions
+  prescriptions?: string; // json string
+
+  // Follow-up Notes
+  followUpNotes?: string;
+  followUpDate?: string;
+
+  // Attachments
+  attachments?: string; // json string
+
+  createdAt: string;
+  doctor?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  patient?: {
+    id: number;
+    name: string;
+    email: string;
+    dob: string;
+    gender: string;
+    bloodGroup?: string;
+    allergies?: string;
+    medicalHistory?: string;
+  };
 }

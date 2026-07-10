@@ -29,6 +29,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
 
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
+    { id: 'emr', name: 'Medical Records', icon: HeartPulse, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'doctors', name: 'Doctors', icon: Stethoscope, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'patients', name: 'Patients List', icon: Users, roles: ['admin', 'doctor', 'receptionist'] },
     { id: 'appointments', name: 'Appointments', icon: Calendar, roles: ['admin', 'doctor', 'receptionist', 'patient'] },

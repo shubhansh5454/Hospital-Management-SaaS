@@ -24,6 +24,7 @@ export const patients = pgTable('patients', {
   bloodGroup: text('blood_group'),
   address: text('address'),
   medicalHistory: text('medical_history'),
+  allergies: text('allergies'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -84,6 +85,7 @@ export const doctorLeaves = pgTable('doctor_leaves', {
 // Relations setup
 export const usersRelations = relations(users, ({ one, many }) => ({
   appointments: many(appointments),
+  emrRecords: many(emrRecords),
   doctorProfile: one(doctorProfiles, {
     fields: [users.id],
     references: [doctorProfiles.userId],
@@ -92,6 +94,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 
 export const patientsRelations = relations(patients, ({ many }) => ({
   appointments: many(appointments),
+  emrRecords: many(emrRecords),
 }));
 
 export const appointmentsRelations = relations(appointments, ({ one }) => ({
@@ -125,5 +128,51 @@ export const doctorLeavesRelations = relations(doctorLeaves, ({ one }) => ({
   doctorProfile: one(doctorProfiles, {
     fields: [doctorLeaves.doctorProfileId],
     references: [doctorProfiles.id],
+  }),
+}));
+
+export const emrRecords = pgTable('emr_records', {
+  id: serial('id').primaryKey(),
+  patientId: integer('patient_id')
+    .references(() => patients.id, { onDelete: 'cascade' })
+    .notNull(),
+  doctorId: integer('doctor_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  appointmentId: integer('appointment_id')
+    .references(() => appointments.id, { onDelete: 'set null' }),
+  date: text('date').notNull(),
+  bloodPressure: text('blood_pressure'),
+  heartRate: integer('heart_rate'),
+  temperature: text('temperature'),
+  respiratoryRate: integer('respiratory_rate'),
+  weight: text('weight'),
+  height: text('height'),
+  bmi: text('bmi'),
+  oxygenSaturation: integer('oxygen_saturation'),
+  diagnosis: text('diagnosis').notNull(),
+  soapSubjective: text('soap_subjective'),
+  soapObjective: text('soap_objective'),
+  soapAssessment: text('soap_assessment'),
+  soapPlan: text('soap_plan'),
+  prescriptions: text('prescriptions'),
+  followUpNotes: text('follow_up_notes'),
+  followUpDate: text('follow_up_date'),
+  attachments: text('attachments'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const emrRecordsRelations = relations(emrRecords, ({ one }) => ({
+  patient: one(patients, {
+    fields: [emrRecords.patientId],
+    references: [patients.id],
+  }),
+  doctor: one(users, {
+    fields: [emrRecords.doctorId],
+    references: [users.id],
+  }),
+  appointment: one(appointments, {
+    fields: [emrRecords.appointmentId],
+    references: [appointments.id],
   }),
 }));
