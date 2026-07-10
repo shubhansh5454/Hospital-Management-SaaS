@@ -17,7 +17,8 @@ import {
   Pill,
   Beaker,
   Package,
-  Bell
+  Bell,
+  FileBarChart2
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -44,6 +45,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'laboratory', name: 'Laboratory', icon: Beaker, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'inventory', name: 'Inventory & Supplies', icon: Package, roles: ['admin', 'doctor', 'receptionist'] },
     { id: 'notifications', name: 'Notifications', icon: Bell, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
+    { id: 'reports', name: 'Reports & Analytics', icon: FileBarChart2, roles: ['admin', 'doctor', 'receptionist'] },
   ];
 
 

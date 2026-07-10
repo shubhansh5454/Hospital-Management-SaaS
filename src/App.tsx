@@ -14,6 +14,7 @@ import Pharmacy from './components/Pharmacy.tsx';
 import Laboratory from './components/Laboratory.tsx';
 import Inventory from './components/Inventory.tsx';
 import Notifications from './components/Notifications.tsx';
+import Reports from './components/Reports.tsx';
 import { HeartPulse } from 'lucide-react';
 
 
@@ -64,6 +65,7 @@ function AppContent() {
       {activeTab === 'laboratory' && <Laboratory />}
       {activeTab === 'inventory' && <Inventory />}
       {activeTab === 'notifications' && <Notifications />}
+      {activeTab === 'reports' && <Reports />}
     </Layout>
 
 
