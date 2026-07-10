@@ -1,9 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../../middleware/auth.ts';
-import { db } from '../../db/index.ts';
-import { appointments, patients, users } from '../../db/schema.ts';
-import { eq, desc } from 'drizzle-orm';
+import { prisma } from '../../db/prisma.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 
 const router = Router();
@@ -24,7 +22,9 @@ const statusSchema = z.object({
 // List Doctors (available to all logged-in roles to book or assign appointments)
 router.get('/doctors', requireAuth, async (req: AuthRequest, res: Response, next) => {
   try {
-    const allDoctors = await db.select().from(users).where(eq(users.role, 'doctor'));
+    const allDoctors = await prisma.user.findMany({
+      where: { role: 'doctor' }
+    });
     res.json(allDoctors);
   } catch (error) {
     next(error);
@@ -38,88 +38,85 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response, next) => {
     const { role, id: userId, email: userEmail } = req.user!;
 
     if (role === 'admin' || role === 'receptionist') {
-      queryResult = await db.select({
-        id: appointments.id,
-        date: appointments.date,
-        time: appointments.time,
-        status: appointments.status,
-        reason: appointments.reason,
-        notes: appointments.notes,
-        patientId: appointments.patientId,
-        doctorId: appointments.doctorId,
-        patient: {
-          id: patients.id,
-          name: patients.name,
-          email: patients.email,
+      queryResult = await prisma.appointment.findMany({
+        include: {
+          patient: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          },
+          doctor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          }
         },
-        doctor: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
+        orderBy: {
+          date: 'desc'
         }
-      })
-      .from(appointments)
-      .innerJoin(patients, eq(appointments.patientId, patients.id))
-      .innerJoin(users, eq(appointments.doctorId, users.id))
-      .orderBy(desc(appointments.date));
+      });
     } else if (role === 'doctor') {
-      queryResult = await db.select({
-        id: appointments.id,
-        date: appointments.date,
-        time: appointments.time,
-        status: appointments.status,
-        reason: appointments.reason,
-        notes: appointments.notes,
-        patientId: appointments.patientId,
-        doctorId: appointments.doctorId,
-        patient: {
-          id: patients.id,
-          name: patients.name,
-          email: patients.email,
+      queryResult = await prisma.appointment.findMany({
+        where: {
+          doctorId: userId
         },
-        doctor: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
+        include: {
+          patient: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          },
+          doctor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          }
+        },
+        orderBy: {
+          date: 'desc'
         }
-      })
-      .from(appointments)
-      .innerJoin(patients, eq(appointments.patientId, patients.id))
-      .innerJoin(users, eq(appointments.doctorId, users.id))
-      .where(eq(appointments.doctorId, userId))
-      .orderBy(desc(appointments.date));
+      });
     } else {
       // Patients look up their appointments based on patient records matching email
-      const matchedPatients = await db.select().from(patients).where(eq(patients.email, userEmail));
+      const matchedPatients = await prisma.patient.findMany({
+        where: { email: userEmail }
+      });
       if (matchedPatients.length === 0) {
         queryResult = [];
       } else {
         const patientIds = matchedPatients.map(p => p.id);
-        queryResult = await db.select({
-          id: appointments.id,
-          date: appointments.date,
-          time: appointments.time,
-          status: appointments.status,
-          reason: appointments.reason,
-          notes: appointments.notes,
-          patientId: appointments.patientId,
-          doctorId: appointments.doctorId,
-          patient: {
-            id: patients.id,
-            name: patients.name,
-            email: patients.email,
+        queryResult = await prisma.appointment.findMany({
+          where: {
+            patientId: patientIds[0] // Simplification
           },
-          doctor: {
-            id: users.id,
-            name: users.name,
-            email: users.email,
+          include: {
+            patient: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            },
+            doctor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            }
+          },
+          orderBy: {
+            date: 'desc'
           }
-        })
-        .from(appointments)
-        .innerJoin(patients, eq(appointments.patientId, patients.id))
-        .innerJoin(users, eq(appointments.doctorId, users.id))
-        .where(eq(appointments.patientId, patientIds[0])) // Simplification
-        .orderBy(desc(appointments.date));
+        });
       }
     }
 
@@ -137,7 +134,9 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response, next) => {
       throw new AppError(parsed.error.issues[0].message, 400);
     }
 
-    const [newAppointment] = await db.insert(appointments).values(parsed.data).returning();
+    const newAppointment = await prisma.appointment.create({
+      data: parsed.data
+    });
     res.status(211).json(newAppointment);
   } catch (error) {
     next(error);
@@ -157,14 +156,16 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res: Response, next) =>
       throw new AppError('Invalid appointment ID', 400);
     }
 
-    await db.update(appointments)
-      .set({ status: parsed.data.status })
-      .where(eq(appointments.id, id));
+    const updated = await prisma.appointment.update({
+      where: { id },
+      data: { status: parsed.data.status }
+    });
 
-    res.json({ message: 'Appointment updated successfully', status: parsed.data.status });
+    res.json({ message: 'Appointment updated successfully', status: updated.status });
   } catch (error) {
     next(error);
   }
 });
 
 export const appointmentsRouter = router;
+

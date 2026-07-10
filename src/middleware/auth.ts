@@ -36,7 +36,7 @@ export const requireAuth = async (
       uid: dbUser.uid,
       email: dbUser.email,
       name: dbUser.name,
-      role: dbUser.role,
+      role: dbUser.role as 'admin' | 'doctor' | 'receptionist' | 'patient',
     };
 
     next();

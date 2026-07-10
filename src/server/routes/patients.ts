@@ -1,9 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRoles, AuthRequest } from '../../middleware/auth.ts';
-import { db } from '../../db/index.ts';
-import { patients } from '../../db/schema.ts';
-import { desc } from 'drizzle-orm';
+import { prisma } from '../../db/prisma.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 
 const router = Router();
@@ -22,7 +20,9 @@ const patientSchema = z.object({
 // List Patients (restricted to admin, doctor, receptionist)
 router.get('/', requireAuth, requireRoles(['admin', 'doctor', 'receptionist']), async (req: AuthRequest, res: Response, next) => {
   try {
-    const allPatients = await db.select().from(patients).orderBy(desc(patients.createdAt));
+    const allPatients = await prisma.patient.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
     res.json(allPatients);
   } catch (error) {
     next(error);
@@ -37,11 +37,14 @@ router.post('/', requireAuth, requireRoles(['admin', 'doctor', 'receptionist']),
       throw new AppError(parsed.error.issues[0].message, 400);
     }
 
-    const [newPatient] = await db.insert(patients).values(parsed.data).returning();
-    res.status(211).json(newPatient); // 201 Created
+    const newPatient = await prisma.patient.create({
+      data: parsed.data
+    });
+    res.status(211).json(newPatient); // 211 mapped to Created
   } catch (error) {
     next(error);
   }
 });
 
 export const patientsRouter = router;
+

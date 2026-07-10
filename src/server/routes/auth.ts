@@ -1,9 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../../middleware/auth.ts';
-import { db } from '../../db/index.ts';
-import { users } from '../../db/schema.ts';
-import { eq } from 'drizzle-orm';
+import { prisma } from '../../db/prisma.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 
 const router = Router();
@@ -28,9 +26,10 @@ router.post('/role', requireAuth, async (req: AuthRequest, res: Response, next) 
       throw new AppError(parsed.error.issues[0].message, 400);
     }
 
-    await db.update(users)
-      .set({ role: parsed.data.role })
-      .where(eq(users.id, req.user!.id));
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { role: parsed.data.role },
+    });
 
     res.json({ message: 'Role updated successfully', role: parsed.data.role });
   } catch (error) {
@@ -39,3 +38,4 @@ router.post('/role', requireAuth, async (req: AuthRequest, res: Response, next) 
 });
 
 export const authRouter = router;
+
