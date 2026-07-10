@@ -40,6 +40,7 @@ model Patient {
   emrRecords     EmrRecord[]
   invoices       Invoice[]
   medicineSales  MedicineSale[]
+  labOrders      LabOrder[]
 
   @@map("patients")
 }
@@ -249,6 +250,45 @@ model MedicineSale {
   patient       Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@map("medicine_sales")
+}
+
+model LabTest {
+  id             Int        @id @default(autoincrement())
+  name           String
+  code           String     @unique // e.g. CBC-001
+  category       String     // e.g. Hematology, Biochemistry, Immunology
+  price          Float
+  sampleType     String     @map("sample_type") // e.g. Blood, Urine
+  turnaroundTime String     @map("turnaround_time") // e.g. 24 hours, 2 hours
+  description    String?
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  orders         LabOrder[]
+
+  @@map("lab_tests")
+}
+
+model LabOrder {
+  id                  Int       @id @default(autoincrement())
+  patientId           Int       @map("patient_id")
+  testId              Int       @map("test_id")
+  status              String    @default("BOOKED") // BOOKED, SAMPLE_COLLECTED, IN_PROGRESS, COMPLETED, CANCELLED
+  bookingDate         String    @map("booking_date") // YYYY-MM-DD
+  sampleCollectedAt   DateTime? @map("sample_collected_at")
+  sampleBarcode       String?   @map("sample_barcode")
+  sampleCollector     String?   @map("sample_collector")
+  resultValue         String?   @map("result_value") // e.g. "14.2" or "Negative"
+  normalRange         String?   @map("normal_range") // e.g. "12.0 - 16.0"
+  unit                String?   // e.g. "g/dL"
+  comments            String?
+  reportAttachmentUrl String?   @map("report_attachment_url")
+  validatedBy         String?   @map("validated_by") // Person who approved the result
+  validatedAt         DateTime? @map("validated_at")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  patient             Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  test                LabTest   @relation(fields: [testId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("lab_orders")
 }
 
 
