@@ -33,3 +33,39 @@ export interface Appointment {
   notes?: string;
   createdAt: Date;
 }
+
+export interface DoctorAvailability {
+  id: number;
+  doctorProfileId: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
+export interface DoctorLeave {
+  id: number;
+  doctorProfileId: number;
+  startDate: string;
+  endDate: string;
+  reason?: string;
+}
+
+export interface DoctorProfile {
+  id: number;
+  userId: number;
+  specialization: string;
+  biography?: string;
+  experienceYrs: number;
+  schedules: DoctorAvailability[];
+  leaves: DoctorLeave[];
+}
+
+export interface DoctorUser {
+  id: number;
+  uid: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  createdAt: string;
+  doctorProfile?: DoctorProfile;
+}

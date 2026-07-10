@@ -7,6 +7,8 @@ export const users = pgTable('users', {
   uid: text('uid').notNull().unique(), // Firebase Auth UID
   email: text('email').notNull(),
   name: text('name').notNull(),
+  password: text('password'),
+  refreshToken: text('refresh_token'),
   role: text('role').$type<'admin' | 'doctor' | 'receptionist' | 'patient'>().default('patient').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -42,9 +44,50 @@ export const appointments = pgTable('appointments', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Doctor Profiles table
+export const doctorProfiles = pgTable('doctor_profiles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull()
+    .unique(),
+  specialization: text('specialization').notNull(),
+  biography: text('biography'),
+  experienceYrs: integer('experience_yrs').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Doctor Availabilities table
+export const doctorAvailabilities = pgTable('doctor_availabilities', {
+  id: serial('id').primaryKey(),
+  doctorProfileId: integer('doctor_profile_id')
+    .references(() => doctorProfiles.id, { onDelete: 'cascade' })
+    .notNull(),
+  dayOfWeek: integer('day_of_week').notNull(), // 0 (Sunday) to 6 (Saturday)
+  startTime: text('start_time').notNull(), // Format: HH:MM
+  endTime: text('end_time').notNull(), // Format: HH:MM
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Doctor Leaves table
+export const doctorLeaves = pgTable('doctor_leaves', {
+  id: serial('id').primaryKey(),
+  doctorProfileId: integer('doctor_profile_id')
+    .references(() => doctorProfiles.id, { onDelete: 'cascade' })
+    .notNull(),
+  startDate: text('start_date').notNull(), // Format: YYYY-MM-DD
+  endDate: text('end_date').notNull(), // Format: YYYY-MM-DD
+  reason: text('reason'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Relations setup
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   appointments: many(appointments),
+  doctorProfile: one(doctorProfiles, {
+    fields: [users.id],
+    references: [doctorProfiles.userId],
+  }),
 }));
 
 export const patientsRelations = relations(patients, ({ many }) => ({
@@ -59,5 +102,28 @@ export const appointmentsRelations = relations(appointments, ({ one }) => ({
   doctor: one(users, {
     fields: [appointments.doctorId],
     references: [users.id],
+  }),
+}));
+
+export const doctorProfilesRelations = relations(doctorProfiles, ({ one, many }) => ({
+  user: one(users, {
+    fields: [doctorProfiles.userId],
+    references: [users.id],
+  }),
+  schedules: many(doctorAvailabilities),
+  leaves: many(doctorLeaves),
+}));
+
+export const doctorAvailabilitiesRelations = relations(doctorAvailabilities, ({ one }) => ({
+  doctorProfile: one(doctorProfiles, {
+    fields: [doctorAvailabilities.doctorProfileId],
+    references: [doctorProfiles.id],
+  }),
+}));
+
+export const doctorLeavesRelations = relations(doctorLeaves, ({ one }) => ({
+  doctorProfile: one(doctorProfiles, {
+    fields: [doctorLeaves.doctorProfileId],
+    references: [doctorProfiles.id],
   }),
 }));

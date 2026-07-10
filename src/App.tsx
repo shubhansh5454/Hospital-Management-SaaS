@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './components/AuthContext.tsx';
 import AuthScreen from './components/AuthScreen.tsx';
 import Layout from './components/Layout.tsx';
 import Dashboard from './components/Dashboard.tsx';
+import Doctors from './components/Doctors.tsx';
 import Patients from './components/Patients.tsx';
 import Appointments from './components/Appointments.tsx';
 import { HeartPulse } from 'lucide-react';
@@ -44,6 +45,7 @@ function AppContent() {
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       {activeTab === 'dashboard' && <Dashboard />}
+      {activeTab === 'doctors' && <Doctors />}
       {activeTab === 'patients' && <Patients />}
       {activeTab === 'appointments' && <Appointments />}
     </Layout>
