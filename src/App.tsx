@@ -11,7 +11,9 @@ import Emr from './components/Emr.tsx';
 import Billing from './components/Billing.tsx';
 import Pharmacy from './components/Pharmacy.tsx';
 import Laboratory from './components/Laboratory.tsx';
+import Inventory from './components/Inventory.tsx';
 import { HeartPulse } from 'lucide-react';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,7 +58,9 @@ function AppContent() {
       {activeTab === 'billing' && <Billing />}
       {activeTab === 'pharmacy' && <Pharmacy />}
       {activeTab === 'laboratory' && <Laboratory />}
+      {activeTab === 'inventory' && <Inventory />}
     </Layout>
+
   );
 }
 

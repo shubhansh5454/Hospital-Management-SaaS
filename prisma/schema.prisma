@@ -291,4 +291,93 @@ model LabOrder {
   @@map("lab_orders")
 }
 
+model InventoryCategory {
+  id          Int                @id @default(autoincrement())
+  name        String             @unique
+  description String?
+  products    InventoryProduct[]
+
+  @@map("inventory_categories")
+}
+
+model Vendor {
+  id             Int             @id @default(autoincrement())
+  name           String
+  contactPerson  String?         @map("contact_person")
+  email          String?
+  phone          String?
+  address        String?
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  purchaseOrders PurchaseOrder[]
+
+  @@map("vendors")
+}
+
+model InventoryProduct {
+  id            Int                 @id @default(autoincrement())
+  name          String
+  sku           String              @unique // Code
+  barcode       String?             @unique
+  categoryId    Int                 @map("category_id")
+  unit          String              // e.g. Box, Piece, Vial
+  stock         Int                 @default(0)
+  minStockAlert Int                 @default(10) @map("min_stock_alert")
+  description   String?
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+
+  category      InventoryCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  movements     StockMovement[]
+  poItems       PurchaseOrderItem[]
+
+  @@map("inventory_products")
+}
+
+model PurchaseOrder {
+  id          Int                 @id @default(autoincrement())
+  vendorId    Int                 @map("vendor_id")
+  orderNumber String              @unique @map("order_number") // e.g. PO-2026-001
+  status      String              @default("PENDING") // PENDING, ORDERED, RECEIVED, CANCELLED
+  orderDate   String              @map("order_date") // YYYY-MM-DD
+  totalAmount Float               @map("total_amount") @default(0.0)
+  notes       String?
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+
+  vendor      Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items       PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              Int              @id @default(autoincrement())
+  purchaseOrderId Int              @map("purchase_order_id")
+  productId       Int              @map("product_id")
+  quantity        Int
+  unitCost        Float            @map("unit_cost")
+  receivedQty     Int              @default(0) @map("received_qty")
+
+  purchaseOrder   PurchaseOrder    @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product         InventoryProduct @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("purchase_order_items")
+}
+
+model StockMovement {
+  id           Int              @id @default(autoincrement())
+  productId    Int              @map("product_id")
+  type         String           // IN, OUT
+  quantity     Int
+  batchNumber  String?          @map("batch_number")
+  expiryDate   String?          @map("expiry_date") // YYYY-MM-DD
+  reason       String           // e.g., "PURCHASE", "DISPENSED", "EXPIRED", "DAMAGED", "ADJUSTMENT"
+  movementDate String           @map("movement_date") // YYYY-MM-DD
+  notes        String?
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+
+  product      InventoryProduct @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("stock_movements")
+}
+
+
 

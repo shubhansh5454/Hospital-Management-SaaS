@@ -15,7 +15,8 @@ import {
   Stethoscope,
   Receipt,
   Pill,
-  Beaker
+  Beaker,
+  Package
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -39,7 +40,9 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'billing', name: 'Billing & Invoices', icon: Receipt, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'pharmacy', name: 'Pharmacy', icon: Pill, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'laboratory', name: 'Laboratory', icon: Beaker, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
+    { id: 'inventory', name: 'Inventory & Supplies', icon: Package, roles: ['admin', 'doctor', 'receptionist'] },
   ];
+
 
   const handleRoleChange = async (newRole: UserRole) => {
     await updateRoleInProfile(newRole);

@@ -7,6 +7,7 @@ import { emrRouter } from './emr.ts';
 import { invoicesRouter } from './invoice.ts';
 import { pharmacyRouter } from './pharmacy.ts';
 import { labRouter } from './lab.ts';
+import { inventoryRouter } from './inventory.ts';
 
 const apiRouter = Router();
 
@@ -18,5 +19,7 @@ apiRouter.use('/emr', emrRouter);
 apiRouter.use('/invoices', invoicesRouter);
 apiRouter.use('/pharmacy', pharmacyRouter);
 apiRouter.use('/lab', labRouter);
+apiRouter.use('/inventory', inventoryRouter);
+
 
 export default apiRouter;
