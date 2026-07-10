@@ -9,6 +9,7 @@ import { pharmacyRouter } from './pharmacy.ts';
 import { labRouter } from './lab.ts';
 import { inventoryRouter } from './inventory.ts';
 import { receptionRouter } from './reception.ts';
+import { dashboardRouter } from './dashboard.ts';
 
 const apiRouter = Router();
 
@@ -22,6 +23,7 @@ apiRouter.use('/pharmacy', pharmacyRouter);
 apiRouter.use('/lab', labRouter);
 apiRouter.use('/inventory', inventoryRouter);
 apiRouter.use('/reception', receptionRouter);
+apiRouter.use('/dashboard', dashboardRouter);
 
 
 
