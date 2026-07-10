@@ -19,6 +19,7 @@ model User {
   appointments  Appointment[]
   doctorProfile DoctorProfile?
   emrRecords    EmrRecord[]
+  invoices      Invoice[]
 
   @@map("users")
 }
@@ -37,6 +38,7 @@ model Patient {
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
   appointments   Appointment[]
   emrRecords     EmrRecord[]
+  invoices       Invoice[]
 
   @@map("patients")
 }
@@ -140,5 +142,60 @@ model EmrRecord {
   patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("emr_records")
+}
+
+model Invoice {
+  id             Int           @id @default(autoincrement())
+  patientId      Int           @map("patient_id")
+  doctorId       Int?          @map("doctor_id")
+  invoiceNumber  String        @unique @map("invoice_number")
+  date           String        // YYYY-MM-DD
+  dueDate        String?       @map("due_date")
+  status         String        @default("pending") // pending, paid, partially_paid, cancelled
+  taxRate        Float         @default(0) @map("tax_rate") // e.g. 18.0 for 18% GST
+  taxAmount      Float         @default(0) @map("tax_amount")
+  discount       Float         @default(0) // discount amount
+  subTotal       Float         @map("sub_total")
+  totalAmount    Float         @map("total_amount")
+  amountPaid     Float         @default(0) @map("amount_paid")
+  paymentMethod  String?       @map("payment_method") // cash, card, upi
+  notes          String?
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+
+  patient        Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  doctor         User?         @relation(fields: [doctorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  items          InvoiceItem[]
+  payments       Payment[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          Int      @id @default(autoincrement())
+  invoiceId   Int      @map("invoice_id")
+  description String
+  quantity    Int      @default(1)
+  unitPrice   Float    @map("unit_price")
+  totalPrice  Float    @map("total_price")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("invoice_items")
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  invoiceId     Int      @map("invoice_id")
+  amount        Float
+  paymentDate   String   @map("payment_date") // YYYY-MM-DD
+  paymentMethod String   @map("payment_method") // cash, card, upi
+  referenceNo   String?  @map("reference_no") // e.g., transaction ID, UPI reference
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("payments")
 }
 

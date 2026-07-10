@@ -12,7 +12,8 @@ import {
   Sparkles,
   RefreshCw,
   Clock,
-  Stethoscope
+  Stethoscope,
+  Receipt
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -33,6 +34,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'doctors', name: 'Doctors', icon: Stethoscope, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'patients', name: 'Patients List', icon: Users, roles: ['admin', 'doctor', 'receptionist'] },
     { id: 'appointments', name: 'Appointments', icon: Calendar, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
+    { id: 'billing', name: 'Billing & Invoices', icon: Receipt, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
   ];
 
   const handleRoleChange = async (newRole: UserRole) => {
