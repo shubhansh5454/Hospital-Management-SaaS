@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { adminAuth } from '../lib/firebase-admin.ts';
 import { getOrCreateUser } from '../db/users.ts';
+import { verifyAccessToken } from '../server/utils/jwt.ts';
+import { prisma } from '../db/prisma.ts';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -24,6 +26,28 @@ export const requireAuth = async (
 
   const token = authHeader.split('Bearer ')[1];
   try {
+    // 1. Try local custom JWT authentication first
+    try {
+      const decodedLocal = verifyAccessToken(token);
+      const dbUser = await prisma.user.findUnique({
+        where: { id: decodedLocal.id },
+      });
+
+      if (dbUser) {
+        req.user = {
+          id: dbUser.id,
+          uid: dbUser.uid,
+          email: dbUser.email,
+          name: dbUser.name,
+          role: dbUser.role as 'admin' | 'doctor' | 'receptionist' | 'patient',
+        };
+        return next();
+      }
+    } catch (localJwtError) {
+      // If verification failed because it's not a valid local JWT, fall through to Firebase verification
+    }
+
+    // 2. Fallback to Firebase authentication
     const decodedToken = await adminAuth.verifyIdToken(token);
     
     // Sync with PostgreSQL
@@ -41,7 +65,7 @@ export const requireAuth = async (
 
     next();
   } catch (error) {
-    console.error('Error verifying Firebase ID token or syncing user:', error);
+    console.error('Error verifying token or syncing user:', error);
     return res.status(401).json({ error: 'Unauthorized: Invalid token or user profile out of sync' });
   }
 };

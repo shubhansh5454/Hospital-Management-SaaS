@@ -3,8 +3,17 @@ import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../../middleware/auth.ts';
 import { prisma } from '../../db/prisma.ts';
 import { AppError } from '../middleware/errorHandler.ts';
+import { AuthController } from '../controllers/auth.ts';
 
 const router = Router();
+
+// Public Authentication Endpoints
+router.post('/register', AuthController.register);
+router.post('/login', AuthController.login);
+router.post('/refresh', AuthController.refresh);
+
+// Authenticated Endpoints
+router.post('/logout', requireAuth, AuthController.logout);
 
 // Get current user profile
 router.get('/me', requireAuth, (req: AuthRequest, res: Response) => {

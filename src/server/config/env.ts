@@ -13,6 +13,8 @@ const envSchema = z.object({
   SQL_ADMIN_USER: z.string().min(1, 'SQL_ADMIN_USER is required'),
   SQL_ADMIN_PASSWORD: z.string().min(1, 'SQL_ADMIN_PASSWORD is required'),
   APP_URL: z.string().optional(),
+  JWT_SECRET: z.string().default('super-secret-hospital-jwt-key'),
+  JWT_REFRESH_SECRET: z.string().default('super-secret-hospital-refresh-jwt-key'),
 });
 
 const parseResult = envSchema.safeParse(process.env);

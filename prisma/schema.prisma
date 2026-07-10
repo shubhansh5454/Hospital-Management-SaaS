@@ -10,9 +10,11 @@ datasource db {
 model User {
   id           Int           @id @default(autoincrement())
   uid          String        @unique(map: "users_uid_unique")
-  email        String
+  email        String        @unique
   name         String
+  password     String?
   role         String        @default("patient")
+  refreshToken String?       @map("refresh_token")
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
   appointments Appointment[]
 
