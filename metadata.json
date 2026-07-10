@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Hospital & Clinic Management SaaS",
+  "description": "A production-ready full-stack Hospital and Clinic Management SaaS platform featuring patient records, appointment scheduling, and secure role-based access control.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
