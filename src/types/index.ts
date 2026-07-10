@@ -1,4 +1,48 @@
-export type UserRole = 'admin' | 'doctor' | 'receptionist' | 'patient';
+export type UserRole = 'superadmin' | 'admin' | 'doctor' | 'receptionist' | 'patient';
+
+export interface Clinic {
+  id: number;
+  name: string;
+  slug: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  status: 'active' | 'suspended';
+  createdAt: string;
+}
+
+export interface ClinicSubscription {
+  id: number;
+  clinicId: number;
+  planName: string; // 'Free' | 'Starter' | 'Professional' | 'Enterprise'
+  status: 'active' | 'expired' | 'suspended';
+  startDate: string;
+  endDate: string;
+  price: number;
+  billingCycle: 'monthly' | 'yearly';
+  createdAt: string;
+}
+
+export interface ClinicBilling {
+  id: number;
+  clinicId: number;
+  invoiceNo: string;
+  amount: number;
+  status: 'paid' | 'unpaid' | 'overdue';
+  billingDate: string;
+  dueDate: string;
+  createdAt: string;
+}
+
+export interface ClinicUsage {
+  id: number;
+  clinicId: number;
+  usersCount: number;
+  patientsCount: number;
+  appointmentsCount: number;
+  storageUsed: number;
+  lastUpdated: string;
+}
 
 export interface UserProfile {
   id: number;
@@ -7,6 +51,8 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   createdAt: Date;
+  clinicId?: number | null;
+  clinic?: Clinic | null;
 }
 
 export interface Patient {

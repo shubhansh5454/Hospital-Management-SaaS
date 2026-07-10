@@ -6,7 +6,7 @@ export class PatientService {
   /**
    * Create a new patient with email uniqueness check (optional check)
    */
-  public static async createPatient(input: CreatePatientInput) {
+  public static async createPatient(input: CreatePatientInput, clinicId?: number) {
     // If we want uniqueness for patient emails, we can check it. Let's make sure we don't block
     // registering different family members with same email, but let's do a friendly log or optional check if needed.
     // Let's assume emails don't necessarily have to be unique for patients (e.g. family email), but let's check
@@ -16,14 +16,14 @@ export class PatientService {
       throw new AppError('A patient with the same name, email, and date of birth already exists.', 400);
     }
 
-    return PatientRepository.create(input);
+    return PatientRepository.create(input, clinicId);
   }
 
   /**
    * Get all patients
    */
-  public static async getAllPatients() {
-    return PatientRepository.findAll();
+  public static async getAllPatients(clinicId?: number) {
+    return PatientRepository.findAll(clinicId);
   }
 
   /**

@@ -10,7 +10,8 @@ export interface AuthRequest extends Request {
     uid: string;
     email: string;
     name: string;
-    role: 'admin' | 'doctor' | 'receptionist' | 'patient';
+    role: 'superadmin' | 'admin' | 'doctor' | 'receptionist' | 'patient';
+    clinicId?: number | null;
   };
 }
 
@@ -39,7 +40,8 @@ export const requireAuth = async (
           uid: dbUser.uid,
           email: dbUser.email,
           name: dbUser.name,
-          role: dbUser.role as 'admin' | 'doctor' | 'receptionist' | 'patient',
+          role: dbUser.role as any,
+          clinicId: dbUser.clinicId,
         };
         return next();
       }
@@ -60,7 +62,8 @@ export const requireAuth = async (
       uid: dbUser.uid,
       email: dbUser.email,
       name: dbUser.name,
-      role: dbUser.role as 'admin' | 'doctor' | 'receptionist' | 'patient',
+      role: dbUser.role as any,
+      clinicId: dbUser.clinicId,
     };
 
     next();
@@ -71,7 +74,7 @@ export const requireAuth = async (
 };
 
 // Role authorization checks
-export const requireRoles = (allowedRoles: ('admin' | 'doctor' | 'receptionist' | 'patient')[]) => {
+export const requireRoles = (allowedRoles: ('superadmin' | 'admin' | 'doctor' | 'receptionist' | 'patient')[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized: User identity not verified' });

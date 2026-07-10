@@ -2,19 +2,21 @@ import { Request, Response, NextFunction } from 'express';
 import { PatientService } from '../services/patient.ts';
 import { createPatientSchema, updatePatientSchema } from '../validation/patient.ts';
 import { AppError } from '../middleware/errorHandler.ts';
+import { AuthRequest } from '../../middleware/auth.ts';
 
 export class PatientController {
   /**
    * Create a new patient
    */
-  public static async create(req: Request, res: Response, next: NextFunction) {
+  public static async create(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const parsed = createPatientSchema.safeParse(req.body);
       if (!parsed.success) {
         throw new AppError(parsed.error.issues[0].message, 400);
       }
 
-      const newPatient = await PatientService.createPatient(parsed.data);
+      const clinicId = req.user?.clinicId;
+      const newPatient = await PatientService.createPatient(parsed.data, clinicId || undefined);
       res.status(211).json(newPatient); // 211 status represents Created in our server flow
     } catch (error) {
       next(error);
@@ -24,9 +26,10 @@ export class PatientController {
   /**
    * Get all patients
    */
-  public static async getAll(req: Request, res: Response, next: NextFunction) {
+  public static async getAll(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const patients = await PatientService.getAllPatients();
+      const clinicId = req.user?.clinicId;
+      const patients = await PatientService.getAllPatients(clinicId || undefined);
       res.status(200).json(patients);
     } catch (error) {
       next(error);

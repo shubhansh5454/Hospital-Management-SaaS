@@ -15,6 +15,8 @@ import Laboratory from './components/Laboratory.tsx';
 import Inventory from './components/Inventory.tsx';
 import Notifications from './components/Notifications.tsx';
 import Reports from './components/Reports.tsx';
+import SaaSAdmin from './components/SaaSAdmin.tsx';
+import ClinicSettings from './components/ClinicSettings.tsx';
 import { HeartPulse } from 'lucide-react';
 
 
@@ -29,8 +31,14 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  useState(() => {
+    if (profile?.role === 'superadmin') {
+      setActiveTab('saas');
+    }
+  });
 
   if (loading) {
     return (
@@ -54,6 +62,8 @@ function AppContent() {
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
+      {activeTab === 'saas' && <SaaSAdmin />}
+      {activeTab === 'clinic-settings' && <ClinicSettings />}
       {activeTab === 'dashboard' && <Dashboard />}
       {activeTab === 'reception' && <Reception />}
       {activeTab === 'emr' && <Emr />}

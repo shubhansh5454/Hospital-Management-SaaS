@@ -34,7 +34,9 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
   const [refreshing, setRefreshing] = useState(false);
 
   const menuItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
+    { id: 'saas', name: 'SaaS Super Admin', icon: ShieldAlert, roles: ['superadmin'] },
+    { id: 'clinic-settings', name: 'Clinic Settings & SaaS', icon: Package, roles: ['admin'] },
+    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'reception', name: 'Reception & Queue', icon: Clock, roles: ['admin', 'receptionist', 'doctor'] },
     { id: 'emr', name: 'Medical Records', icon: HeartPulse, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'doctors', name: 'Doctors', icon: Stethoscope, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
@@ -166,7 +168,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                   <div className="px-3 py-1.5 border-b border-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                     Switch Active Role
                   </div>
-                  {(['admin', 'doctor', 'receptionist', 'patient'] as UserRole[]).map((roleVal) => (
+                  {(['superadmin', 'admin', 'doctor', 'receptionist', 'patient'] as UserRole[]).map((roleVal) => (
                     <button
                       key={roleVal}
                       onClick={() => handleRoleChange(roleVal)}

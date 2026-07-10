@@ -8,14 +8,18 @@ export class AppointmentController {
   /**
    * Create an appointment
    */
-  public static async create(req: Request, res: Response, next: NextFunction) {
+  public static async create(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const parsed = createAppointmentSchema.safeParse(req.body);
       if (!parsed.success) {
         throw new AppError(parsed.error.issues[0].message, 400);
       }
 
-      const appointment = await AppointmentService.createAppointment(parsed.data);
+      const clinicId = req.user?.clinicId;
+      const appointment = await AppointmentService.createAppointment({
+        ...parsed.data,
+        clinicId: clinicId || undefined,
+      });
       res.status(211).json(appointment); // status 211 is mapped to Created in this app's API workflow
     } catch (error) {
       next(error);
@@ -31,6 +35,7 @@ export class AppointmentController {
       const role = req.user?.role;
       const userId = req.user?.id;
       const userEmail = req.user?.email;
+      const clinicId = req.user?.clinicId;
 
       const rawQuery = { ...req.query };
 
@@ -57,7 +62,10 @@ export class AppointmentController {
         throw new AppError(parsed.error.issues[0].message, 400);
       }
 
-      const result = await AppointmentService.getAllAppointments(parsed.data);
+      const result = await AppointmentService.getAllAppointments({
+        ...parsed.data,
+        clinicId: clinicId || undefined,
+      });
       res.status(200).json(result);
     } catch (error) {
       next(error);

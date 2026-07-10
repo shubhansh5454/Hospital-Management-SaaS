@@ -5,7 +5,7 @@ export class PatientRepository {
   /**
    * Create a new patient
    */
-  public static async create(data: CreatePatientInput) {
+  public static async create(data: CreatePatientInput, clinicId?: number) {
     return prisma.patient.create({
       data: {
         name: data.name,
@@ -17,6 +17,7 @@ export class PatientRepository {
         address: data.address ?? null,
         medicalHistory: data.medicalHistory ?? null,
         allergies: data.allergies ?? null,
+        clinicId: clinicId || null,
       },
     });
   }
@@ -24,8 +25,9 @@ export class PatientRepository {
   /**
    * Find all patients ordered by creation date descending
    */
-  public static async findAll() {
+  public static async findAll(clinicId?: number) {
     return prisma.patient.findMany({
+      where: clinicId ? { clinicId } : {},
       orderBy: {
         createdAt: 'desc',
       },

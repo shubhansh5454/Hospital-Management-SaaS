@@ -7,8 +7,8 @@ export class AppointmentService {
   /**
    * Create a new appointment
    */
-  public static async createAppointment(input: CreateAppointmentInput) {
-    const { doctorId, patientId, date, time } = input;
+  public static async createAppointment(input: CreateAppointmentInput & { clinicId?: number }) {
+    const { doctorId, patientId, date, time, clinicId } = input;
 
     // 1. Verify doctor exists and has the 'doctor' role
     const doctor = await prisma.user.findFirst({
@@ -32,14 +32,14 @@ export class AppointmentService {
       throw new AppError(`Dr. ${doctor.name} is already booked at ${time} on ${date}. Please select another time slot.`, 400);
     }
 
-    return AppointmentRepository.create(input);
+    return AppointmentRepository.create({ ...input, clinicId });
   }
 
   /**
    * Get all appointments with pagination & query filters
    */
-  public static async getAllAppointments(query: FilterAppointmentQuery) {
-    const { page, limit, doctorId, patientId, date, status, search } = query;
+  public static async getAllAppointments(query: FilterAppointmentQuery & { clinicId?: number }) {
+    const { page, limit, doctorId, patientId, date, status, search, clinicId } = query;
     const skip = (page - 1) * limit;
 
     const filters: AppointmentFilterInput = {
@@ -50,11 +50,12 @@ export class AppointmentService {
       search,
       skip,
       take: limit,
+      clinicId,
     };
 
     const [appointments, totalCount] = await Promise.all([
       AppointmentRepository.findAll(filters),
-      AppointmentRepository.countAll({ doctorId, patientId, date, status, search }),
+      AppointmentRepository.countAll({ doctorId, patientId, date, status, search, clinicId }),
     ]);
 
     return {

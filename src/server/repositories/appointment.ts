@@ -8,6 +8,7 @@ export interface AppointmentFilterInput {
   search?: string;
   skip?: number;
   take?: number;
+  clinicId?: number;
 }
 
 export class AppointmentRepository {
@@ -22,6 +23,7 @@ export class AppointmentRepository {
     reason: string;
     notes?: string;
     status?: string;
+    clinicId?: number;
   }) {
     return prisma.appointment.create({
       data: {
@@ -32,6 +34,7 @@ export class AppointmentRepository {
         reason: data.reason,
         notes: data.notes ?? null,
         status: data.status ?? 'scheduled',
+        clinicId: data.clinicId ?? null,
       },
       include: {
         patient: {
@@ -57,10 +60,14 @@ export class AppointmentRepository {
    * Find all appointments based on filters, pagination, and search queries
    */
   public static async findAll(filters: AppointmentFilterInput) {
-    const { doctorId, patientId, date, status, search, skip = 0, take = 50 } = filters;
+    const { doctorId, patientId, date, status, search, skip = 0, take = 50, clinicId } = filters;
 
     // Build query conditions
     const whereClause: any = {};
+
+    if (clinicId !== undefined) {
+      whereClause.clinicId = clinicId;
+    }
 
     if (doctorId !== undefined) {
       whereClause.doctorId = doctorId;
@@ -142,8 +149,12 @@ export class AppointmentRepository {
    * Count total appointments matching the filter conditions
    */
   public static async countAll(filters: Omit<AppointmentFilterInput, 'skip' | 'take'>) {
-    const { doctorId, patientId, date, status, search } = filters;
+    const { doctorId, patientId, date, status, search, clinicId } = filters;
     const whereClause: any = {};
+
+    if (clinicId !== undefined) {
+      whereClause.clinicId = clinicId;
+    }
 
     if (doctorId !== undefined) {
       whereClause.doctorId = doctorId;

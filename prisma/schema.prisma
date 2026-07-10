@@ -16,12 +16,14 @@ model User {
   role          String         @default("patient")
   refreshToken  String?        @map("refresh_token")
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
+  clinicId      Int?           @map("clinic_id")
   appointments  Appointment[]
   doctorProfile DoctorProfile?
   emrRecords    EmrRecord[]
   invoices      Invoice[]
   queueTokens   QueueToken[]
   notifications Notification[]
+  clinic        Clinic?        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("users")
 }
@@ -38,6 +40,7 @@ model Patient {
   medicalHistory String?       @map("medical_history")
   allergies      String?       @map("allergies")
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  clinicId       Int?          @map("clinic_id")
   appointments   Appointment[]
   emrRecords     EmrRecord[]
   invoices       Invoice[]
@@ -45,6 +48,7 @@ model Patient {
   labOrders      LabOrder[]
   queueTokens    QueueToken[]
   notifications  Notification[]
+  clinic         Clinic?       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("patients")
 }
@@ -59,9 +63,11 @@ model Appointment {
   reason    String
   notes     String?
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  clinicId  Int?     @map("clinic_id")
   doctor    User     @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointments_doctor_id_users_id_fk")
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointments_patient_id_patients_id_fk")
   queueToken QueueToken?
+  clinic    Clinic?  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("appointments")
 }
@@ -168,9 +174,11 @@ model Invoice {
   paymentMethod  String?       @map("payment_method") // cash, card, upi
   notes          String?
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  clinicId       Int?          @map("clinic_id")
 
   patient        Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   doctor         User?         @relation(fields: [doctorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  clinic         Clinic?       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   items          InvoiceItem[]
   payments       Payment[]
 
@@ -218,8 +226,10 @@ model Medicine {
   purchasePrice  Float              @map("purchase_price") // Buying price
   rackLocation   String?            @map("rack_location")
   createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamp(6)
+  clinicId       Int?               @map("clinic_id")
   purchases      MedicinePurchase[]
   sales          MedicineSale[]
+  clinic         Clinic?            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("medicines")
 }
@@ -289,9 +299,11 @@ model LabOrder {
   validatedBy         String?   @map("validated_by") // Person who approved the result
   validatedAt         DateTime? @map("validated_at")
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  clinicId            Int?      @map("clinic_id")
 
   patient             Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   test                LabTest   @relation(fields: [testId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  clinic              Clinic?   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("lab_orders")
 }
@@ -329,10 +341,12 @@ model InventoryProduct {
   minStockAlert Int                 @default(10) @map("min_stock_alert")
   description   String?
   createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  clinicId      Int?                @map("clinic_id")
 
   category      InventoryCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   movements     StockMovement[]
   poItems       PurchaseOrderItem[]
+  clinic        Clinic?             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("inventory_products")
 }
@@ -393,10 +407,12 @@ model QueueToken {
   status        String      @default("WAITING") // WAITING, CALLING, IN_CONSULTATION, COMPLETED, SKIPPED
   notes         String?
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  clinicId      Int?        @map("clinic_id")
 
   patient       Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   doctor        User        @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  clinic        Clinic?     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("queue_tokens")
 }
@@ -412,11 +428,84 @@ model Notification {
   status          String    @default("SENT") // PENDING, SENT, DELIVERED, FAILED, READ
   deliveryDetails String?   @map("delivery_details")
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  clinicId        Int?      @map("clinic_id")
 
   patient         Patient?  @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  clinic          Clinic?   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model Clinic {
+  id             Int                  @id @default(autoincrement())
+  name           String
+  slug           String               @unique
+  email          String?
+  phone          String?
+  address        String?
+  status         String               @default("active") // "active" | "suspended"
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
+  
+  users          User[]
+  patients       Patient[]
+  appointments   Appointment[]
+  invoices       Invoice[]
+  medicines      Medicine[]
+  labOrders      LabOrder[]
+  inventoryProducts InventoryProduct[]
+  queueTokens    QueueToken[]
+  notifications  Notification[]
+  subscriptions  ClinicSubscription[]
+  billings       ClinicBilling[]
+  usages         ClinicUsage[]
+
+  @@map("clinics")
+}
+
+model ClinicSubscription {
+  id           Int      @id @default(autoincrement())
+  clinicId     Int      @map("clinic_id")
+  planName     String   @map("plan_name") // "Free", "Starter", "Professional", "Enterprise"
+  status       String   @default("active") // "active", "expired", "suspended"
+  startDate    String   @map("start_date") // YYYY-MM-DD
+  endDate      String   @map("end_date") // YYYY-MM-DD
+  price        Float    @default(0)
+  billingCycle String   @default("monthly") @map("billing_cycle") // "monthly" | "yearly"
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  
+  clinic       Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@map("clinic_subscriptions")
+}
+
+model ClinicBilling {
+  id          Int      @id @default(autoincrement())
+  clinicId    Int      @map("clinic_id")
+  invoiceNo   String   @unique @map("invoice_no")
+  amount      Float
+  status      String   @default("unpaid") // "paid" | "unpaid" | "overdue"
+  billingDate String   @map("billing_date") // YYYY-MM-DD
+  dueDate     String   @map("due_date") // YYYY-MM-DD
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  
+  clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@map("clinic_billings")
+}
+
+model ClinicUsage {
+  id                Int      @id @default(autoincrement())
+  clinicId          Int      @unique @map("clinic_id")
+  usersCount        Int      @default(0) @map("users_count")
+  patientsCount     Int      @default(0) @map("patients_count")
+  appointmentsCount Int      @default(0) @map("appointments_count")
+  storageUsed       Float    @default(0.0) @map("storage_used") // MB
+  lastUpdated       DateTime @default(now()) @updatedAt @map("last_updated") @db.Timestamp(6)
+  
+  clinic            Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@map("clinic_usages")
 }
 
 
