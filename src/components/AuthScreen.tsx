@@ -21,7 +21,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <div id="auth_container" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f0f9ff] via-[#fafafa] to-[#f0fdf4] p-4 font-sans">
+    <div id="auth_container" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f0f9ff] via-[#fafafa] to-[#f0fdf4] p-4 font-sans">
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
