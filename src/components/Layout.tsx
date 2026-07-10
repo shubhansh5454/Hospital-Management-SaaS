@@ -16,7 +16,8 @@ import {
   Receipt,
   Pill,
   Beaker,
-  Package
+  Package,
+  Bell
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -33,6 +34,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
 
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
+    { id: 'reception', name: 'Reception & Queue', icon: Bell, roles: ['admin', 'receptionist', 'doctor'] },
     { id: 'emr', name: 'Medical Records', icon: HeartPulse, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'doctors', name: 'Doctors', icon: Stethoscope, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'patients', name: 'Patients List', icon: Users, roles: ['admin', 'doctor', 'receptionist'] },
@@ -42,6 +44,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'laboratory', name: 'Laboratory', icon: Beaker, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'inventory', name: 'Inventory & Supplies', icon: Package, roles: ['admin', 'doctor', 'receptionist'] },
   ];
+
 
 
   const handleRoleChange = async (newRole: UserRole) => {

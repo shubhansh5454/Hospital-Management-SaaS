@@ -20,6 +20,7 @@ model User {
   doctorProfile DoctorProfile?
   emrRecords    EmrRecord[]
   invoices      Invoice[]
+  queueTokens   QueueToken[]
 
   @@map("users")
 }
@@ -41,6 +42,7 @@ model Patient {
   invoices       Invoice[]
   medicineSales  MedicineSale[]
   labOrders      LabOrder[]
+  queueTokens    QueueToken[]
 
   @@map("patients")
 }
@@ -57,6 +59,7 @@ model Appointment {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   doctor    User     @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointments_doctor_id_users_id_fk")
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointments_patient_id_patients_id_fk")
+  queueToken QueueToken?
 
   @@map("appointments")
 }
@@ -378,6 +381,24 @@ model StockMovement {
 
   @@map("stock_movements")
 }
+
+model QueueToken {
+  id            Int         @id @default(autoincrement())
+  tokenNumber   String      @map("token_number")
+  patientId     Int         @map("patient_id")
+  appointmentId Int?        @unique @map("appointment_id")
+  doctorId      Int         @map("doctor_id")
+  status        String      @default("WAITING") // WAITING, CALLING, IN_CONSULTATION, COMPLETED, SKIPPED
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+
+  patient       Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  doctor        User        @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("queue_tokens")
+}
+
 
 
 

@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './components/AuthContext.tsx';
 import AuthScreen from './components/AuthScreen.tsx';
 import Layout from './components/Layout.tsx';
 import Dashboard from './components/Dashboard.tsx';
+import Reception from './components/Reception.tsx';
 import Doctors from './components/Doctors.tsx';
 import Patients from './components/Patients.tsx';
 import Appointments from './components/Appointments.tsx';
@@ -13,6 +14,7 @@ import Pharmacy from './components/Pharmacy.tsx';
 import Laboratory from './components/Laboratory.tsx';
 import Inventory from './components/Inventory.tsx';
 import { HeartPulse } from 'lucide-react';
+
 
 
 const queryClient = new QueryClient({
@@ -51,6 +53,7 @@ function AppContent() {
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       {activeTab === 'dashboard' && <Dashboard />}
+      {activeTab === 'reception' && <Reception />}
       {activeTab === 'emr' && <Emr />}
       {activeTab === 'doctors' && <Doctors />}
       {activeTab === 'patients' && <Patients />}
@@ -60,6 +63,7 @@ function AppContent() {
       {activeTab === 'laboratory' && <Laboratory />}
       {activeTab === 'inventory' && <Inventory />}
     </Layout>
+
 
   );
 }

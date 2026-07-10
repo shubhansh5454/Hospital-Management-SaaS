@@ -8,6 +8,7 @@ import { invoicesRouter } from './invoice.ts';
 import { pharmacyRouter } from './pharmacy.ts';
 import { labRouter } from './lab.ts';
 import { inventoryRouter } from './inventory.ts';
+import { receptionRouter } from './reception.ts';
 
 const apiRouter = Router();
 
@@ -20,6 +21,8 @@ apiRouter.use('/invoices', invoicesRouter);
 apiRouter.use('/pharmacy', pharmacyRouter);
 apiRouter.use('/lab', labRouter);
 apiRouter.use('/inventory', inventoryRouter);
+apiRouter.use('/reception', receptionRouter);
+
 
 
 export default apiRouter;
