@@ -1,29 +1,23 @@
-import { Router, Response } from 'express';
-import { z } from 'zod';
-import { requireAuth, AuthRequest } from '../../middleware/auth.ts';
+import { Router } from 'express';
+import { requireAuth } from '../../middleware/auth.ts';
+import { AppointmentController } from '../controllers/appointment.ts';
 import { prisma } from '../../db/prisma.ts';
-import { AppError } from '../middleware/errorHandler.ts';
 
 const router = Router();
 
-const appointmentSchema = z.object({
-  patientId: z.number(),
-  doctorId: z.number(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
-  time: z.string().regex(/^\d{2}:\d{2}$/, "Time must be HH:MM"),
-  reason: z.string().min(2, "Reason must be at least 2 characters"),
-  notes: z.string().optional(),
-});
+// Apply requireAuth globally to ensure secure clinical data access
+router.use(requireAuth);
 
-const statusSchema = z.object({
-  status: z.enum(['scheduled', 'completed', 'cancelled']),
-});
-
-// List Doctors (available to all logged-in roles to book or assign appointments)
-router.get('/doctors', requireAuth, async (req: AuthRequest, res: Response, next) => {
+/**
+ * @route GET /api/appointments/doctors
+ * @desc Retrieve list of physicians for appointment allocation dropdowns
+ * @access Private (authenticated users)
+ */
+router.get('/doctors', async (req, res, next) => {
   try {
     const allDoctors = await prisma.user.findMany({
-      where: { role: 'doctor' }
+      where: { role: 'doctor' },
+      select: { id: true, name: true, email: true },
     });
     res.json(allDoctors);
   } catch (error) {
@@ -31,141 +25,39 @@ router.get('/doctors', requireAuth, async (req: AuthRequest, res: Response, next
   }
 });
 
-// List Appointments (based on role)
-router.get('/', requireAuth, async (req: AuthRequest, res: Response, next) => {
-  try {
-    let queryResult;
-    const { role, id: userId, email: userEmail } = req.user!;
+/**
+ * @route GET /api/appointments
+ * @desc Fetch appointments list based on user roles with support for filtering, sorting, search, and pagination
+ * @access Private (role-specific scoping handled by Controller)
+ */
+router.get('/', AppointmentController.getAll);
 
-    if (role === 'admin' || role === 'receptionist') {
-      queryResult = await prisma.appointment.findMany({
-        include: {
-          patient: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            }
-          },
-          doctor: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            }
-          }
-        },
-        orderBy: {
-          date: 'desc'
-        }
-      });
-    } else if (role === 'doctor') {
-      queryResult = await prisma.appointment.findMany({
-        where: {
-          doctorId: userId
-        },
-        include: {
-          patient: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            }
-          },
-          doctor: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            }
-          }
-        },
-        orderBy: {
-          date: 'desc'
-        }
-      });
-    } else {
-      // Patients look up their appointments based on patient records matching email
-      const matchedPatients = await prisma.patient.findMany({
-        where: { email: userEmail }
-      });
-      if (matchedPatients.length === 0) {
-        queryResult = [];
-      } else {
-        const patientIds = matchedPatients.map(p => p.id);
-        queryResult = await prisma.appointment.findMany({
-          where: {
-            patientId: patientIds[0] // Simplification
-          },
-          include: {
-            patient: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              }
-            },
-            doctor: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              }
-            }
-          },
-          orderBy: {
-            date: 'desc'
-          }
-        });
-      }
-    }
+/**
+ * @route GET /api/appointments/:id
+ * @desc Get details of a single appointment by ID
+ * @access Private
+ */
+router.get('/:id', AppointmentController.getById);
 
-    res.json(queryResult);
-  } catch (error) {
-    next(error);
-  }
-});
+/**
+ * @route POST /api/appointments
+ * @desc Create a new appointment slot with double-booking check validation
+ * @access Private
+ */
+router.post('/', AppointmentController.create);
 
-// Create Appointment
-router.post('/', requireAuth, async (req: AuthRequest, res: Response, next) => {
-  try {
-    const parsed = appointmentSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw new AppError(parsed.error.issues[0].message, 400);
-    }
+/**
+ * @route PUT /api/appointments/:id
+ * @desc Update appointment fields or status with availability conflict checks
+ * @access Private
+ */
+router.put('/:id', AppointmentController.update);
 
-    const newAppointment = await prisma.appointment.create({
-      data: parsed.data
-    });
-    res.status(211).json(newAppointment);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Update status
-router.put('/:id', requireAuth, async (req: AuthRequest, res: Response, next) => {
-  try {
-    const parsed = statusSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw new AppError('Invalid status', 400);
-    }
-
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      throw new AppError('Invalid appointment ID', 400);
-    }
-
-    const updated = await prisma.appointment.update({
-      where: { id },
-      data: { status: parsed.data.status }
-    });
-
-    res.json({ message: 'Appointment updated successfully', status: updated.status });
-  } catch (error) {
-    next(error);
-  }
-});
+/**
+ * @route DELETE /api/appointments/:id
+ * @desc Terminate/remove an appointment record
+ * @access Private
+ */
+router.delete('/:id', AppointmentController.delete);
 
 export const appointmentsRouter = router;
-
