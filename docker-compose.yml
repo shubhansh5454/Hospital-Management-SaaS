@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # ==============================================================================
+  # 1. Hospital SaaS App Service (Node.js Express + React SPA)
+  # ==============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: care-sync-suite:latest
+    container_name: caresync-app
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SQL_HOST=db
+      - SQL_USER=${SQL_USER:-postgres}
+      - SQL_PASSWORD=${SQL_PASSWORD:-caresync_secure_db_pass_2026}
+      - SQL_DB_NAME=${SQL_DB_NAME:-caresync_production_db}
+      - SQL_ADMIN_USER=${SQL_ADMIN_USER:-postgres}
+      - SQL_ADMIN_PASSWORD=${SQL_ADMIN_PASSWORD:-caresync_secure_db_pass_2026}
+      - JWT_SECRET=${JWT_SECRET:-d908cf69a40df68e0d4f5b2fbc4469e25d2b1df}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-a19f20e4b2dcd84f6990d0b0b8c7e90e2908ff1c}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - APP_URL=${APP_URL:-https://localhost}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - app-backups:/usr/src/app/src/server/data/backups
+    expose:
+      - "3000"
+    networks:
+      - caresync-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ==============================================================================
+  # 2. Database Service (PostgreSQL relational storage)
+  # ==============================================================================
+  db:
+    image: postgres:15-alpine
+    container_name: caresync-db
+    restart: always
+    shm_size: 256mb # Tune shared memory limit for PostgreSQL performance
+    environment:
+      POSTGRES_USER: ${SQL_USER:-postgres}
+      POSTGRES_PASSWORD: ${SQL_PASSWORD:-caresync_secure_db_pass_2026}
+      POSTGRES_DB: ${SQL_DB_NAME:-caresync_production_db}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    networks:
+      - caresync-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SQL_USER:-postgres} -d ${SQL_DB_NAME:-caresync_production_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ==============================================================================
+  # 3. Secure Reverse Proxy Ingress (Nginx SSL Router)
+  # ==============================================================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: caresync-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - certbot-www:/var/www/certbot:ro
+      - certbot-certs:/etc/letsencrypt:ro
+    networks:
+      - caresync-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+# ==============================================================================
+# Volumes and Network Declarations
+# ==============================================================================
+volumes:
+  postgres-data:
+    driver: local
+  app-backups:
+    driver: local
+  certbot-www:
+    driver: local
+  certbot-certs:
+    driver: local
+
+networks:
+  caresync-network:
+    driver: bridge

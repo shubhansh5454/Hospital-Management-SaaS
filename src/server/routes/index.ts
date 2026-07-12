@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { prisma } from '../../db/prisma.ts';
 import { authRouter } from './auth.ts';
 import { patientsRouter } from './patients.ts';
 import { appointmentsRouter } from './appointments.ts';
@@ -23,6 +24,36 @@ import { backupRouter } from './backup.ts';
 
 const apiRouter = Router();
 
+// Health Check Endpoint (DB connectivity, uptime, memory, status)
+apiRouter.get('/health', async (req, res) => {
+  const healthData: {
+    status: 'UP' | 'DOWN' | 'DEGRADED';
+    timestamp: string;
+    uptime: number;
+    memory: NodeJS.MemoryUsage;
+    database: { status: 'CONNECTED' | 'DISCONNECTED'; error?: string };
+  } = {
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    database: { status: 'DISCONNECTED' }
+  };
+
+  try {
+    // Run simple query to test connection
+    await prisma.$queryRaw`SELECT 1`;
+    healthData.database.status = 'CONNECTED';
+  } catch (err: any) {
+    healthData.status = 'DEGRADED';
+    healthData.database.status = 'DISCONNECTED';
+    healthData.database.error = err.message || 'Database connection error';
+  }
+
+  const statusCode = healthData.status === 'UP' ? 200 : 503;
+  res.status(statusCode).json(healthData);
+});
+
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/patients', patientsRouter);
 apiRouter.use('/appointments', appointmentsRouter);
@@ -44,7 +75,5 @@ apiRouter.use('/video', videoRouter);
 apiRouter.use('/insurance', insuranceRouter);
 apiRouter.use('/hr', hrRouter);
 apiRouter.use('/backup', backupRouter);
-
-
 
 export default apiRouter;
