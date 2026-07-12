@@ -178,7 +178,7 @@ export default function VideoConsultation() {
       if (!res.ok) throw new Error('Failed to load appointments');
       const data = await res.json();
       // Only keep scheduled appointments
-      return data;
+      return Array.isArray(data) ? data : (data.appointments || []);
     }
   });
 

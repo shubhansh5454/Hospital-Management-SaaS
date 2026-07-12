@@ -22,6 +22,7 @@ import { insuranceRouter } from './insurance.ts';
 import { hrRouter } from './hr.ts';
 import { backupRouter } from './backup.ts';
 import { portalRouter } from './portal.ts';
+import { v1Router } from './v1/index.ts';
 
 const apiRouter = Router();
 
@@ -77,5 +78,6 @@ apiRouter.use('/insurance', insuranceRouter);
 apiRouter.use('/hr', hrRouter);
 apiRouter.use('/backup', backupRouter);
 apiRouter.use('/portal', portalRouter);
+apiRouter.use('/v1', v1Router);
 
 export default apiRouter;

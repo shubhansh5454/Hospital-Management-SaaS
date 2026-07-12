@@ -75,7 +75,10 @@ export default function Dashboard() {
       const res = await fetch('/api/appointments', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) return res.json();
+      if (res.ok) {
+        const data = await res.json();
+        return Array.isArray(data) ? data : (data.appointments || []);
+      }
       return [];
     },
     enabled: !!token
