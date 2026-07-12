@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext.tsx';
 import { useRealTime } from './RealTimeContext.tsx';
+import GlobalSearch from './GlobalSearch.tsx';
 import { 
   HeartPulse, 
   LayoutDashboard, 
@@ -24,7 +25,8 @@ import {
   Video,
   Shield,
   UserCheck,
-  Database
+  Database,
+  Search
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -46,6 +48,21 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Listen for global keyboard shortcut Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, []);
 
   // Listen for global real-time notifications
   useEffect(() => {
@@ -194,6 +211,16 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                 {isConnected ? 'Real-Time Live' : 'Offline (Reconnecting)'}
               </span>
             </div>
+
+            {/* Premium Global Search Trigger Bar Button */}
+            <button 
+              onClick={() => setIsSearchOpen(true)}
+              className="h-9 px-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/60 rounded-xl text-xs font-semibold text-slate-500 flex items-center gap-3 transition-all duration-150 cursor-pointer shadow-sm group"
+            >
+              <Search className="w-4 h-4 text-slate-400 group-hover:text-teal-500 transition-colors" />
+              <span className="text-slate-400 group-hover:text-slate-600 transition-colors">Search anything...</span>
+              <kbd className="bg-white text-[10px] text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 shadow-sm font-mono tracking-tight shrink-0">⌘K</kbd>
+            </button>
           </div>
 
           {/* Sandbox Role Switcher Controller */}
@@ -243,6 +270,13 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
           {children}
         </main>
       </div>
+
+      {/* Global Search command palette overlay */}
+      <GlobalSearch 
+        isOpen={isSearchOpen} 
+        onClose={() => setIsSearchOpen(false)} 
+        setActiveTab={setActiveTab} 
+      />
 
       {/* Floating Real-Time Toast Notification Gateway Portal */}
       <div id="live_toast_portal" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm w-full select-none">
