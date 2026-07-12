@@ -3,6 +3,7 @@ import { AppointmentService } from '../services/appointment.ts';
 import { createAppointmentSchema, updateAppointmentSchema, filterAppointmentQuerySchema } from '../validation/appointment.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { AuthRequest } from '../../middleware/auth.ts';
+import { RolesService } from '../services/roles.ts';
 
 export class AppointmentController {
   /**
@@ -20,6 +21,19 @@ export class AppointmentController {
         ...parsed.data,
         clinicId: clinicId || undefined,
       });
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'CREATE_APPOINTMENT',
+          'appointments',
+          { id: appointment.id, date: appointment.date, time: appointment.time, patientId: appointment.patientId }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for appointment creation:', logErr);
+      }
+
       res.status(211).json(appointment); // status 211 is mapped to Created in this app's API workflow
     } catch (error) {
       next(error);
@@ -92,7 +106,7 @@ export class AppointmentController {
   /**
    * Update an appointment by ID
    */
-  public static async update(req: Request, res: Response, next: NextFunction) {
+  public static async update(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) {
@@ -105,6 +119,19 @@ export class AppointmentController {
       }
 
       const updated = await AppointmentService.updateAppointment(id, parsed.data);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'UPDATE_APPOINTMENT',
+          'appointments',
+          { id: updated.id, updates: parsed.data }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for appointment update:', logErr);
+      }
+
       res.status(200).json(updated);
     } catch (error) {
       next(error);
@@ -114,7 +141,7 @@ export class AppointmentController {
   /**
    * Delete an appointment by ID
    */
-  public static async delete(req: Request, res: Response, next: NextFunction) {
+  public static async delete(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) {
@@ -122,6 +149,19 @@ export class AppointmentController {
       }
 
       const result = await AppointmentService.deleteAppointment(id);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'DELETE_APPOINTMENT',
+          'appointments',
+          { id, result }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for appointment deletion:', logErr);
+      }
+
       res.status(200).json(result);
     } catch (error) {
       next(error);

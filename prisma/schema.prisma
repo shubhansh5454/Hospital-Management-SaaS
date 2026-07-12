@@ -577,6 +577,8 @@ model AuditLog {
   resource  String   // e.g. "appointment"
   details   String?  // JSON string or description
   ipAddress String?  @map("ip_address")
+  device    String?
+  browser   String?
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)

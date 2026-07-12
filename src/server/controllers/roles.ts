@@ -258,13 +258,15 @@ export class RolesController {
         return res.status(400).json({ error: 'Clinic ID context required' });
       }
 
-      const { userId, action, resource, startDate, endDate } = req.query;
+      const { userId, action, resource, startDate, endDate, device, browser } = req.query;
       const filters = {
         userId: userId ? parseInt(userId as string, 10) : undefined,
         action: action ? String(action) : undefined,
         resource: resource ? String(resource) : undefined,
         startDate: startDate ? String(startDate) : undefined,
         endDate: endDate ? String(endDate) : undefined,
+        device: device ? String(device) : undefined,
+        browser: browser ? String(browser) : undefined,
       };
 
       const logs = await RolesService.getAuditLogs(clinicId || null, filters);

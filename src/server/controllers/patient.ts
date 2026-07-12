@@ -3,6 +3,7 @@ import { PatientService } from '../services/patient.ts';
 import { createPatientSchema, updatePatientSchema } from '../validation/patient.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { AuthRequest } from '../../middleware/auth.ts';
+import { RolesService } from '../services/roles.ts';
 
 export class PatientController {
   /**
@@ -17,6 +18,19 @@ export class PatientController {
 
       const clinicId = req.user?.clinicId;
       const newPatient = await PatientService.createPatient(parsed.data, clinicId || undefined);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'CREATE_PATIENT',
+          'patients',
+          { id: newPatient.id, name: newPatient.name }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for patient creation:', logErr);
+      }
+
       res.status(211).json(newPatient); // 211 status represents Created in our server flow
     } catch (error) {
       next(error);
@@ -56,7 +70,7 @@ export class PatientController {
   /**
    * Update patient by ID
    */
-  public static async update(req: Request, res: Response, next: NextFunction) {
+  public static async update(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) {
@@ -69,6 +83,19 @@ export class PatientController {
       }
 
       const updatedPatient = await PatientService.updatePatient(id, parsed.data);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'UPDATE_PATIENT',
+          'patients',
+          { id: updatedPatient.id, name: updatedPatient.name, updates: parsed.data }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for patient update:', logErr);
+      }
+
       res.status(200).json(updatedPatient);
     } catch (error) {
       next(error);
@@ -78,7 +105,7 @@ export class PatientController {
   /**
    * Delete patient by ID
    */
-  public static async delete(req: Request, res: Response, next: NextFunction) {
+  public static async delete(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) {
@@ -86,6 +113,19 @@ export class PatientController {
       }
 
       const result = await PatientService.deletePatient(id);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'DELETE_PATIENT',
+          'patients',
+          { id, result }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for patient deletion:', logErr);
+      }
+
       res.status(200).json(result);
     } catch (error) {
       next(error);

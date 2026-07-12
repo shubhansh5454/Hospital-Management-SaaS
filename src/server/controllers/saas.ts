@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { SaasService } from '../services/saas.ts';
 import { AuthRequest } from '../../middleware/auth.ts';
 import { AppError } from '../middleware/errorHandler.ts';
+import { RolesService } from '../services/roles.ts';
 
 export class SaasController {
   /**
@@ -28,6 +29,20 @@ export class SaasController {
         billingCycle,
         userId: req.user.id,
       });
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'REGISTER_CLINIC',
+          'settings',
+          { id: clinic.id, name: clinic.name, slug: clinic.slug },
+          req.user.id,
+          clinic.id
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for clinic registration:', logErr);
+      }
 
       res.status(201).json({
         status: 'success',
@@ -89,6 +104,18 @@ export class SaasController {
       }
 
       const updated = await SaasService.updateClinic(clinicId, req.body);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'UPDATE_CLINIC_SETTINGS',
+          'settings',
+          { clinicId, updates: req.body }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for clinic settings update:', logErr);
+      }
       res.status(200).json({ status: 'success', data: updated });
     } catch (error) {
       next(error);
@@ -111,6 +138,18 @@ export class SaasController {
       }
 
       const sub = await SaasService.changeSubscription(clinicId, planName, billingCycle);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'CHANGE_SUBSCRIPTION',
+          'settings',
+          { clinicId, planName, billingCycle }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for subscription change:', logErr);
+      }
       res.status(200).json({
         status: 'success',
         message: 'Subscription updated successfully',

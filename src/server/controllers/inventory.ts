@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { InventoryService } from '../services/inventory.ts';
+import { RolesService } from '../services/roles.ts';
+import { AuthRequest } from '../../middleware/auth.ts';
 import {
   createCategorySchema,
   updateCategorySchema,
@@ -120,6 +122,19 @@ export class InventoryController {
     try {
       const validated = createProductSchema.parse(req.body);
       const product = await InventoryService.createProduct(validated);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'CREATE_INVENTORY_PRODUCT',
+          'inventory',
+          { id: product.id, name: product.name, sku: product.sku }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for inventory creation:', logErr);
+      }
+
       res.status(201).json(product);
     } catch (error) {
       next(error);
@@ -155,6 +170,19 @@ export class InventoryController {
       const id = parseInt(req.params.id);
       const validated = updateProductSchema.parse(req.body);
       const product = await InventoryService.updateProduct(id, validated);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'UPDATE_INVENTORY_PRODUCT',
+          'inventory',
+          { id: product.id, name: product.name, sku: product.sku, updates: validated }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for inventory update:', logErr);
+      }
+
       res.json(product);
     } catch (error) {
       next(error);
@@ -165,6 +193,19 @@ export class InventoryController {
     try {
       const id = parseInt(req.params.id);
       await InventoryService.deleteProduct(id);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'DELETE_INVENTORY_PRODUCT',
+          'inventory',
+          { id }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for inventory deletion:', logErr);
+      }
+
       res.json({ success: true, message: 'Product deleted successfully' });
     } catch (error) {
       next(error);
@@ -249,6 +290,19 @@ export class InventoryController {
         expiryDate: validated.expiryDate || undefined,
         notes: validated.notes || undefined,
       });
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'RECORD_STOCK_MOVEMENT',
+          'inventory',
+          { id: movement.id, productId: movement.productId, quantity: movement.quantity, type: movement.type }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for stock movement:', logErr);
+      }
+
       res.status(201).json(movement);
     } catch (error) {
       next(error);

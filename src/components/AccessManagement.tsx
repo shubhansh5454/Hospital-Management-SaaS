@@ -18,7 +18,12 @@ import {
   Unlock, 
   ChevronRight, 
   ChevronDown,
-  AlertCircle
+  AlertCircle,
+  Download,
+  Laptop,
+  Smartphone,
+  Tablet,
+  Globe
 } from 'lucide-react';
 
 interface Permission {
@@ -73,6 +78,8 @@ interface AuditLog {
   resource: string;
   details: string;
   ipAddress: string | null;
+  device: string | null;
+  browser: string | null;
   createdAt: string;
   user: {
     id: number;
@@ -106,6 +113,8 @@ export default function AccessManagement() {
   const [auditSearchQuery, setAuditSearchQuery] = useState('');
   const [auditFilterAction, setAuditFilterAction] = useState('');
   const [auditFilterResource, setAuditFilterResource] = useState('');
+  const [auditFilterDevice, setAuditFilterDevice] = useState('');
+  const [auditFilterBrowser, setAuditFilterBrowser] = useState('');
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
 
   // Notifications state
@@ -436,12 +445,49 @@ export default function AccessManagement() {
 
   // Filtered Audit Logs
   const filteredAuditLogs = auditLogs.filter(log => {
-    const textToSearch = `${log.action} ${log.resource} ${log.user?.name || 'System'} ${log.details}`.toLowerCase();
+    const textToSearch = `${log.action} ${log.resource} ${log.user?.name || 'System'} ${log.details} ${log.device || ''} ${log.browser || ''}`.toLowerCase();
     const matchSearch = textToSearch.includes(auditSearchQuery.toLowerCase());
     const matchAction = auditFilterAction ? log.action === auditFilterAction : true;
     const matchResource = auditFilterResource ? log.resource === auditFilterResource : true;
-    return matchSearch && matchAction && matchResource;
+    const matchDevice = auditFilterDevice ? log.device === auditFilterDevice : true;
+    const matchBrowser = auditFilterBrowser ? log.browser === auditFilterBrowser : true;
+    return matchSearch && matchAction && matchResource && matchDevice && matchBrowser;
   });
+
+  const uniqueDevices = Array.from(new Set(auditLogs.map(l => l.device).filter(Boolean))) as string[];
+  const uniqueBrowsers = Array.from(new Set(auditLogs.map(l => l.browser).filter(Boolean))) as string[];
+
+  const handleExportCSV = () => {
+    const headers = ['ID', 'Timestamp', 'User', 'Email', 'Action', 'Resource', 'IP Address', 'Device', 'Browser', 'Details'];
+    const rows = filteredAuditLogs.map(log => [
+      log.id,
+      new Date(log.createdAt).toISOString(),
+      log.user?.name || 'System / Auto',
+      log.user?.email || 'system-agent',
+      log.action,
+      log.resource,
+      log.ipAddress || '127.0.0.1',
+      log.device || 'Unknown',
+      log.browser || 'Unknown',
+      log.details.replace(/"/g, '""')
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(val => `"${val}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `audit_logs_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showFeedback('success', `Successfully exported ${filteredAuditLogs.length} audit logs as CSV!`);
+  };
 
   const activeRole = roles.find(r => r.id === selectedRoleId);
   const groupedPerms = getGroupedPermissions();
@@ -758,43 +804,107 @@ export default function AccessManagement() {
           </div>
 
           {/* Quick Filters */}
-          <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-3 rounded-xl">
-            <span className="text-xs text-slate-400 flex items-center gap-1 font-bold uppercase tracking-wider pl-1 mr-2"><Filter className="w-3.5 h-3.5" /> Filters:</span>
-            
-            <select
-              value={auditFilterAction}
-              onChange={e => setAuditFilterAction(e.target.value)}
-              className="px-3 py-1.5 text-xs font-semibold bg-white rounded-lg border border-slate-200 text-slate-600 outline-none focus:ring-1 focus:ring-teal-500"
-            >
-              <option value="">All Actions</option>
-              <option value="ACCESS_DENIED">ACCESS_DENIED</option>
-              <option value="CREATE_ROLE">CREATE_ROLE</option>
-              <option value="UPDATE_ROLE">UPDATE_ROLE</option>
-              <option value="DELETE_ROLE">DELETE_ROLE</option>
-              <option value="ASSIGN_USER_ROLE">ASSIGN_USER_ROLE</option>
-              <option value="UPDATE_USER_PERMISSIONS">UPDATE_USER_PERMISSIONS</option>
-            </select>
-
-            <select
-              value={auditFilterResource}
-              onChange={e => setAuditFilterResource(e.target.value)}
-              className="px-3 py-1.5 text-xs font-semibold bg-white rounded-lg border border-slate-200 text-slate-600 outline-none focus:ring-1 focus:ring-teal-500"
-            >
-              <option value="">All Resource Types</option>
-              <option value="custom_role">custom_role</option>
-              <option value="user">user</option>
-              <option value="view_audit_logs">view_audit_logs</option>
-              <option value="manage_roles_permissions">manage_roles_permissions</option>
-            </select>
-
-            {(auditFilterAction || auditFilterResource || auditSearchQuery) && (
-              <button 
-                onClick={() => { setAuditFilterAction(''); setAuditFilterResource(''); setAuditSearchQuery(''); }}
-                className="px-3 py-1 bg-slate-200 text-slate-600 hover:text-slate-800 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs text-slate-400 flex items-center gap-1 font-bold uppercase tracking-wider pl-1 mr-2"><Filter className="w-3.5 h-3.5" /> Filters:</span>
+              
+              <select
+                value={auditFilterAction}
+                onChange={e => setAuditFilterAction(e.target.value)}
+                className="px-3 py-1.5 text-xs font-semibold bg-white rounded-lg border border-slate-200 text-slate-600 outline-none focus:ring-1 focus:ring-teal-500"
               >
-                Clear Filters
-              </button>
-            )}
+                <option value="">All Actions</option>
+                <option value="ACCESS_DENIED">ACCESS_DENIED</option>
+                <option value="CREATE_ROLE">CREATE_ROLE</option>
+                <option value="UPDATE_ROLE">UPDATE_ROLE</option>
+                <option value="DELETE_ROLE">DELETE_ROLE</option>
+                <option value="ASSIGN_USER_ROLE">ASSIGN_USER_ROLE</option>
+                <option value="UPDATE_USER_PERMISSIONS">UPDATE_USER_PERMISSIONS</option>
+                <option value="LOGIN">LOGIN</option>
+                <option value="LOGOUT">LOGOUT</option>
+                <option value="CREATE_PATIENT">CREATE_PATIENT</option>
+                <option value="UPDATE_PATIENT">UPDATE_PATIENT</option>
+                <option value="DELETE_PATIENT">DELETE_PATIENT</option>
+                <option value="CREATE_APPOINTMENT">CREATE_APPOINTMENT</option>
+                <option value="UPDATE_APPOINTMENT">UPDATE_APPOINTMENT</option>
+                <option value="DELETE_APPOINTMENT">DELETE_APPOINTMENT</option>
+                <option value="CREATE_INVOICE">CREATE_INVOICE</option>
+                <option value="RECORD_PAYMENT">RECORD_PAYMENT</option>
+                <option value="CREATE_INVENTORY_PRODUCT">CREATE_INVENTORY_PRODUCT</option>
+                <option value="UPDATE_INVENTORY_PRODUCT">UPDATE_INVENTORY_PRODUCT</option>
+                <option value="RECORD_STOCK_MOVEMENT">RECORD_STOCK_MOVEMENT</option>
+                <option value="CREATE_MEDICINE">CREATE_MEDICINE</option>
+                <option value="RESTOCK_MEDICINE">RESTOCK_MEDICINE</option>
+                <option value="SELL_MEDICINE">SELL_MEDICINE</option>
+                <option value="CREATE_LAB_TEST">CREATE_LAB_TEST</option>
+                <option value="BOOK_LAB_ORDER">BOOK_LAB_ORDER</option>
+                <option value="COLLECT_LAB_SAMPLE">COLLECT_LAB_SAMPLE</option>
+                <option value="FINALIZE_LAB_RESULTS">FINALIZE_LAB_RESULTS</option>
+              </select>
+
+              <select
+                value={auditFilterResource}
+                onChange={e => setAuditFilterResource(e.target.value)}
+                className="px-3 py-1.5 text-xs font-semibold bg-white rounded-lg border border-slate-200 text-slate-600 outline-none focus:ring-1 focus:ring-teal-500"
+              >
+                <option value="">All Resource Types</option>
+                <option value="custom_role">custom_role</option>
+                <option value="user">user</option>
+                <option value="view_audit_logs">view_audit_logs</option>
+                <option value="manage_roles_permissions">manage_roles_permissions</option>
+                <option value="patients">patients</option>
+                <option value="appointments">appointments</option>
+                <option value="billing">billing</option>
+                <option value="inventory">inventory</option>
+                <option value="pharmacy">pharmacy</option>
+                <option value="lab">lab</option>
+                <option value="settings">settings</option>
+              </select>
+
+              <select
+                value={auditFilterDevice}
+                onChange={e => setAuditFilterDevice(e.target.value)}
+                className="px-3 py-1.5 text-xs font-semibold bg-white rounded-lg border border-slate-200 text-slate-600 outline-none focus:ring-1 focus:ring-teal-500"
+              >
+                <option value="">All Devices</option>
+                {uniqueDevices.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+
+              <select
+                value={auditFilterBrowser}
+                onChange={e => setAuditFilterBrowser(e.target.value)}
+                className="px-3 py-1.5 text-xs font-semibold bg-white rounded-lg border border-slate-200 text-slate-600 outline-none focus:ring-1 focus:ring-teal-500"
+              >
+                <option value="">All Browsers</option>
+                {uniqueBrowsers.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+
+              {(auditFilterAction || auditFilterResource || auditFilterDevice || auditFilterBrowser || auditSearchQuery) && (
+                <button 
+                  onClick={() => { 
+                    setAuditFilterAction(''); 
+                    setAuditFilterResource(''); 
+                    setAuditFilterDevice(''); 
+                    setAuditFilterBrowser(''); 
+                    setAuditSearchQuery(''); 
+                  }}
+                  className="px-3 py-1 bg-slate-200 text-slate-600 hover:text-slate-800 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-lg transition-all cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </button>
           </div>
 
           {auditLoading ? (
@@ -851,13 +961,28 @@ export default function AccessManagement() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs font-mono text-slate-400 self-end sm:self-auto">
-                        <div className="text-right">
-                          <p>{new Date(log.createdAt).toLocaleString()}</p>
-                          <p className="text-[10px] text-slate-300">IP: {log.ipAddress || '127.0.0.1'}</p>
+                        <div className="flex items-center gap-4 text-xs font-mono text-slate-400 self-end sm:self-auto">
+                          <div className="text-right">
+                            <p>{new Date(log.createdAt).toLocaleString()}</p>
+                            <p className="text-[10px] text-slate-300 flex items-center gap-1 justify-end">
+                              <span>IP: {log.ipAddress || '127.0.0.1'}</span>
+                              <span className="text-slate-400">|</span>
+                              {log.device === 'Mobile' ? (
+                                <Smartphone className="w-3 h-3 text-slate-400 inline" title="Mobile" />
+                              ) : log.device === 'Tablet' ? (
+                                <Tablet className="w-3 h-3 text-slate-400 inline" title="Tablet" />
+                              ) : log.device === 'Desktop' ? (
+                                <Laptop className="w-3 h-3 text-slate-400 inline" title="Desktop" />
+                              ) : (
+                                <Globe className="w-3 h-3 text-slate-400 inline" title="Unknown Device" />
+                              )}
+                              <span>{log.device || 'Desktop'}</span>
+                              <span className="text-slate-400">|</span>
+                              <span>{log.browser || 'Browser'}</span>
+                            </p>
+                          </div>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180 text-slate-600' : 'text-slate-300'}`} />
                         </div>
-                        <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180 text-slate-600' : 'text-slate-300'}`} />
-                      </div>
                     </div>
 
                     {/* Expandable Details Panel */}

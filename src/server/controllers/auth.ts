@@ -3,6 +3,7 @@ import { AuthService } from '../services/auth.ts';
 import { registerSchema, loginSchema, refreshTokenSchema } from '../validation/auth.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { AuthRequest } from '../../middleware/auth.ts';
+import { RolesService } from '../services/roles.ts';
 
 export class AuthController {
   /**
@@ -36,6 +37,21 @@ export class AuthController {
       }
 
       const result = await AuthService.login(parsed.data);
+
+      // Track successful login in Audit Log
+      try {
+        await RolesService.logRequest(
+          req,
+          'LOGIN',
+          'auth',
+          `User logged in: ${result.user.email}`,
+          result.user.id,
+          result.user.clinicId || undefined
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for login:', logErr);
+      }
+
       res.status(200).json({
         status: 'success',
         data: result,
@@ -75,6 +91,19 @@ export class AuthController {
       }
 
       const result = await AuthService.logout(req.user.id);
+
+      // Track successful logout in Audit Log
+      try {
+        await RolesService.logRequest(
+          req,
+          'LOGOUT',
+          'auth',
+          `User logged out: ${req.user.email}`
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for logout:', logErr);
+      }
+
       res.status(200).json({
         status: 'success',
         message: 'Logged out successfully',

@@ -6,6 +6,8 @@ export interface AuditLogFilters {
   resource?: string;
   startDate?: string;
   endDate?: string;
+  device?: string;
+  browser?: string;
 }
 
 export const STANDARD_PERMISSIONS = [
@@ -415,7 +417,16 @@ export class RolesService {
   /**
    * Enterprise Audit Logging
    */
-  public static async logAudit(userId: number | null, clinicId: number | null, action: string, resource: string, details: string | object, ipAddress?: string) {
+  public static async logAudit(
+    userId: number | null,
+    clinicId: number | null,
+    action: string,
+    resource: string,
+    details: string | object,
+    ipAddress?: string,
+    device?: string,
+    browser?: string
+  ) {
     const detailsStr = typeof details === 'object' ? JSON.stringify(details) : details;
     
     return prisma.auditLog.create({
@@ -426,8 +437,66 @@ export class RolesService {
         resource,
         details: detailsStr,
         ipAddress,
+        device: device || null,
+        browser: browser || null,
       },
     });
+  }
+
+  /**
+   * Extract browser and device from User-Agent and log audit event in one go
+   */
+  public static async logRequest(
+    req: any,
+    action: string,
+    resource: string,
+    details: string | object,
+    userIdOverride?: number,
+    clinicIdOverride?: number
+  ) {
+    const userId = userIdOverride || req.user?.id || null;
+    const clinicId = clinicIdOverride || req.user?.clinicId || null;
+    const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const ua = req.headers['user-agent'] || '';
+    
+    // User-Agent Parsing
+    let browser = 'Unknown Browser';
+    let device = 'Desktop';
+    const uaLower = ua.toLowerCase();
+    
+    if (uaLower.includes('firefox')) {
+      browser = 'Firefox';
+    } else if (uaLower.includes('opr') || uaLower.includes('opera')) {
+      browser = 'Opera';
+    } else if (uaLower.includes('edg')) {
+      browser = 'Edge';
+    } else if (uaLower.includes('chrome')) {
+      browser = 'Chrome';
+    } else if (uaLower.includes('safari')) {
+      browser = 'Safari';
+    } else if (uaLower.includes('msie') || uaLower.includes('trident')) {
+      browser = 'Internet Explorer';
+    }
+    
+    if (uaLower.includes('ipad')) {
+      device = 'Tablet (iPad)';
+    } else if (uaLower.includes('iphone')) {
+      device = 'Mobile (iPhone)';
+    } else if (uaLower.includes('android')) {
+      if (uaLower.includes('mobile')) {
+        device = 'Mobile (Android)';
+      } else {
+        device = 'Tablet (Android)';
+      }
+    } else if (uaLower.includes('macintosh') || uaLower.includes('mac os')) {
+      device = 'Mac Desktop';
+    } else if (uaLower.includes('windows')) {
+      device = 'Windows Desktop';
+    } else if (uaLower.includes('linux')) {
+      device = 'Linux Desktop';
+    }
+
+    return this.logAudit(userId, clinicId, action, resource, details, ip, device, browser);
   }
 
   /**
@@ -451,6 +520,14 @@ export class RolesService {
 
     if (filters.resource) {
       whereClause.resource = filters.resource;
+    }
+
+    if (filters.device) {
+      whereClause.device = filters.device;
+    }
+
+    if (filters.browser) {
+      whereClause.browser = filters.browser;
     }
 
     if (filters.startDate || filters.endDate) {

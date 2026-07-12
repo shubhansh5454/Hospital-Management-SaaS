@@ -3,6 +3,7 @@ import { InvoiceService } from '../services/invoice.ts';
 import { createInvoiceSchema, recordPaymentSchema } from '../validation/invoice.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { AuthRequest } from '../../middleware/auth.ts';
+import { RolesService } from '../services/roles.ts';
 
 export class InvoiceController {
   /**
@@ -25,6 +26,19 @@ export class InvoiceController {
         ...parsed.data,
         doctorId,
       });
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'CREATE_INVOICE',
+          'billing',
+          { id: newInvoice.id, total: newInvoice.totalAmount, patientId: newInvoice.patientId }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for invoice creation:', logErr);
+      }
+
       res.status(201).json(newInvoice);
     } catch (error) {
       next(error);
@@ -87,6 +101,19 @@ export class InvoiceController {
       }
 
       const result = await InvoiceService.recordPayment(id, parsed.data);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'RECORD_PAYMENT',
+          'billing',
+          { id, amount: parsed.data.amount, method: parsed.data.paymentMethod }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for payment recording:', logErr);
+      }
+
       res.status(200).json(result);
     } catch (error) {
       next(error);
@@ -105,6 +132,19 @@ export class InvoiceController {
 
       const { status, notes, dueDate } = req.body;
       const updated = await InvoiceService.updateInvoice(id, { status, notes, dueDate });
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'UPDATE_INVOICE',
+          'billing',
+          { id, status, notes, dueDate }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for invoice update:', logErr);
+      }
+
       res.status(200).json(updated);
     } catch (error) {
       next(error);
@@ -122,6 +162,19 @@ export class InvoiceController {
       }
 
       const result = await InvoiceService.deleteInvoice(id);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'DELETE_INVOICE',
+          'billing',
+          { id, result }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for invoice deletion:', logErr);
+      }
+
       res.status(200).json(result);
     } catch (error) {
       next(error);

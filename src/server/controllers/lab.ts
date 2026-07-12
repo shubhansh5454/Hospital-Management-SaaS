@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { LabService } from '../services/lab.ts';
+import { RolesService } from '../services/roles.ts';
 import {
   createLabTestSchema,
   updateLabTestSchema,
@@ -16,6 +17,19 @@ export class LabController {
     try {
       const validated = createLabTestSchema.parse(req.body);
       const test = await LabService.createLabTest(validated);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'CREATE_LAB_TEST',
+          'lab',
+          { id: test.id, name: test.name, code: test.code }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for lab test creation:', logErr);
+      }
+
       res.status(201).json(test);
     } catch (error) {
       next(error);
@@ -60,6 +74,19 @@ export class LabController {
       const id = parseInt(req.params.id);
       const validated = updateLabTestSchema.parse(req.body);
       const test = await LabService.updateLabTest(id, validated);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'UPDATE_LAB_TEST',
+          'lab',
+          { id, name: test.name, updates: validated }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for lab test update:', logErr);
+      }
+
       res.json(test);
     } catch (error) {
       next(error);
@@ -73,6 +100,19 @@ export class LabController {
     try {
       const id = parseInt(req.params.id);
       const result = await LabService.deleteLabTest(id);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'DELETE_LAB_TEST',
+          'lab',
+          { id, result }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for lab test deletion:', logErr);
+      }
+
       res.json(result);
     } catch (error) {
       next(error);
@@ -86,6 +126,19 @@ export class LabController {
     try {
       const validated = bookLabTestSchema.parse(req.body);
       const order = await LabService.bookTestOrder(validated);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'BOOK_LAB_ORDER',
+          'lab',
+          { id: order.id, patientId: order.patientId, testId: order.testId }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for lab booking:', logErr);
+      }
+
       res.status(201).json(order);
     } catch (error) {
       next(error);
@@ -135,6 +188,19 @@ export class LabController {
         collector: validated.collector,
         collectedAt: new Date(validated.collectedAt),
       });
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'COLLECT_LAB_SAMPLE',
+          'lab',
+          { id, barcode: validated.barcode, collector: validated.collector }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for sample collection:', logErr);
+      }
+
       res.json(order);
     } catch (error) {
       next(error);
@@ -148,6 +214,19 @@ export class LabController {
     try {
       const id = parseInt(req.params.id);
       const order = await LabService.startAnalysis(id);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'START_LAB_ANALYSIS',
+          'lab',
+          { id }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for starting analysis:', logErr);
+      }
+
       res.json(order);
     } catch (error) {
       next(error);
@@ -170,6 +249,19 @@ export class LabController {
         validatedBy: validated.validatedBy,
         validatedAt: new Date(),
       });
+
+      // Log audit
+      try {
+        await RolesService.logRequest(
+          req,
+          'FINALIZE_LAB_RESULTS',
+          'lab',
+          { id, validatedBy: validated.validatedBy, resultValue: validated.resultValue }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for finalizing results:', logErr);
+      }
+
       res.json(order);
     } catch (error) {
       next(error);
