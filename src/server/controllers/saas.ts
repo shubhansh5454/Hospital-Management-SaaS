@@ -132,12 +132,12 @@ export class SaasController {
         throw new AppError('Forbidden: No clinic associated with your user', 403);
       }
 
-      const { planName, billingCycle } = req.body;
+      const { planName, billingCycle, trial } = req.body;
       if (!planName || !billingCycle) {
         throw new AppError('Missing planName or billingCycle', 400);
       }
 
-      const sub = await SaasService.changeSubscription(clinicId, planName, billingCycle);
+      const sub = await SaasService.changeSubscription(clinicId, planName, billingCycle, { trial: !!trial });
 
       // Log audit
       try {
@@ -145,16 +145,92 @@ export class SaasController {
           req,
           'CHANGE_SUBSCRIPTION',
           'settings',
-          { clinicId, planName, billingCycle }
+          { clinicId, planName, billingCycle, trial: !!trial }
         );
       } catch (logErr) {
         console.error('Audit logging failed for subscription change:', logErr);
       }
       res.status(200).json({
         status: 'success',
-        message: 'Subscription updated successfully',
+        message: trial ? 'Free trial subscription started successfully' : 'Subscription updated successfully',
         data: sub,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Cancel Subscription
+   */
+  public static async cancelSubscription(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const clinicId = req.user?.clinicId;
+      if (!clinicId) {
+        throw new AppError('Forbidden: No clinic associated with your user', 403);
+      }
+
+      const sub = await SaasService.cancelSubscription(clinicId);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(req, 'CANCEL_SUBSCRIPTION', 'settings', { clinicId });
+      } catch (logErr) {
+        console.error('Audit logging failed for subscription cancel:', logErr);
+      }
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Subscription cancelled successfully.',
+        data: sub,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Renew Subscription
+   */
+  public static async renewSubscription(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const clinicId = req.user?.clinicId;
+      if (!clinicId) {
+        throw new AppError('Forbidden: No clinic associated with your user', 403);
+      }
+
+      const sub = await SaasService.renewSubscription(clinicId);
+
+      // Log audit
+      try {
+        await RolesService.logRequest(req, 'RENEW_SUBSCRIPTION', 'settings', { clinicId });
+      } catch (logErr) {
+        console.error('Audit logging failed for subscription renewal:', logErr);
+      }
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Subscription renewed successfully.',
+        data: sub,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get SaaS Invoice Detail Breakdown
+   */
+  public static async getSaaSInvoiceDetail(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const clinicId = req.user?.clinicId;
+      if (!clinicId) {
+        throw new AppError('Forbidden: No clinic associated with your user', 403);
+      }
+
+      const invoiceId = parseInt(req.params.id);
+      const detail = await SaasService.getSaaSInvoiceDetail(clinicId, invoiceId);
+      res.status(200).json(detail);
     } catch (error) {
       next(error);
     }

@@ -5,6 +5,7 @@ import { createPatientSchema, updatePatientSchema } from '../../validation/patie
 import { AppError } from '../../middleware/errorHandler.ts';
 import { standardRateLimiter, writeRateLimiter } from '../../middleware/rateLimiter.ts';
 import { RolesService } from '../../services/roles.ts';
+import { SaasService } from '../../services/saas.ts';
 
 const router = Router();
 
@@ -172,6 +173,13 @@ router.post('/', requireRoles(['admin', 'doctor', 'receptionist']), writeRateLim
     }
 
     const clinicId = req.user?.clinicId;
+    if (clinicId) {
+      const stats = await SaasService.getUsageStats(clinicId);
+      if (stats.patientsCount >= stats.planConfig.maxPatients) {
+        throw new AppError(`Your clinic is at the registered patient limit (${stats.planConfig.maxPatients}) for the "${stats.planConfig.name}" plan. Please upgrade to register more patients.`, 403);
+      }
+    }
+
     const newPatient = await prisma.patient.create({
       data: {
         ...parsed.data,

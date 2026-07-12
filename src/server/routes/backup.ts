@@ -1,7 +1,13 @@
 import { Router } from 'express';
+import { requireAuth } from '../../middleware/auth.ts';
+import { requireFeature } from '../middleware/featureCheck.ts';
 import { BackupService } from '../services/backup.ts';
 
 export const backupRouter = Router();
+
+// Apply auth and feature restrictions to all backup endpoints
+backupRouter.use(requireAuth);
+backupRouter.use(requireFeature('backup'));
 
 // Get backup configuration (storage & auto settings)
 backupRouter.get('/config', (req, res, next) => {

@@ -28,7 +28,10 @@ router.put('/clinics/:id', requireAuth, requireRoles(['superadmin']), SaasContro
 
 // Subscriptions & Billing
 router.post('/subscription/change', requireAuth, requireRoles(['superadmin', 'admin']), SaasController.changeSubscription);
+router.post('/subscription/cancel', requireAuth, requireRoles(['superadmin', 'admin']), SaasController.cancelSubscription);
+router.post('/subscription/renew', requireAuth, requireRoles(['superadmin', 'admin']), SaasController.renewSubscription);
 router.get('/billings', requireAuth, requireRoles(['superadmin', 'admin']), SaasController.getBillingHistory);
+router.get('/billings/:id/breakdown', requireAuth, requireRoles(['superadmin', 'admin']), SaasController.getSaaSInvoiceDetail);
 router.post('/billings/:id/pay', requireAuth, requireRoles(['superadmin', 'admin']), SaasController.payInvoice);
 
 // Usage monitoring

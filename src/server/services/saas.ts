@@ -206,35 +206,51 @@ export class SaasService {
   /**
    * Change Subscription Plan
    */
-  public static async changeSubscription(clinicId: number, planName: string, billingCycle: 'monthly' | 'yearly') {
+  public static async changeSubscription(clinicId: number, planName: string, billingCycle: 'monthly' | 'yearly', options?: { trial?: boolean }) {
     const selectedPlan = SAAS_PLANS[planName];
     if (!selectedPlan) {
       throw new AppError(`Invalid plan name: ${planName}`, 400);
     }
 
+    // Downgrade Limit Verification: Ensure usage doesn't exceed new plan constraints
+    const stats = await this.getUsageStats(clinicId);
+    if (stats.usersCount > selectedPlan.maxUsers) {
+      throw new AppError(`Cannot switch to "${selectedPlan.name}": Your current staff member count (${stats.usersCount}) exceeds the plan limit (${selectedPlan.maxUsers}). Please deactivate staff members in settings first.`, 403);
+    }
+    if (stats.patientsCount > selectedPlan.maxPatients) {
+      throw new AppError(`Cannot switch to "${selectedPlan.name}": Your current patient registration count (${stats.patientsCount}) exceeds the plan limit (${selectedPlan.maxPatients}).`, 403);
+    }
+
     const startDate = new Date();
     const endDate = new Date();
-    if (billingCycle === 'yearly') {
+    const isTrial = options?.trial === true;
+
+    if (isTrial) {
+      // 14 days free trial duration
+      endDate.setDate(endDate.getDate() + 14);
+    } else if (billingCycle === 'yearly') {
       endDate.setFullYear(endDate.getFullYear() + 1);
     } else {
       endDate.setMonth(endDate.getMonth() + 1);
     }
 
-    const subscriptionPrice = billingCycle === 'yearly' ? selectedPlan.price * 12 * 0.8 : selectedPlan.price;
+    // Free trial has a price of $0
+    const subscriptionPrice = isTrial ? 0 : (billingCycle === 'yearly' ? selectedPlan.price * 12 * 0.8 : selectedPlan.price);
+    const subStatus = isTrial ? 'trial' : 'active';
 
     return await prisma.$transaction(async (tx) => {
       // Deactivate older active subscriptions
       await tx.clinicSubscription.updateMany({
-        where: { clinicId, status: 'active' },
+        where: { clinicId, status: { in: ['active', 'trial'] } },
         data: { status: 'expired' },
       });
 
-      // Create new subscription
+      // Create new subscription (Active or Trial)
       const sub = await tx.clinicSubscription.create({
         data: {
           clinicId,
           planName: selectedPlan.name,
-          status: 'active',
+          status: subStatus,
           startDate: startDate.toISOString().split('T')[0],
           endDate: endDate.toISOString().split('T')[0],
           price: subscriptionPrice,
@@ -242,7 +258,7 @@ export class SaasService {
         },
       });
 
-      // Generate invoice
+      // Generate Invoice
       const invoiceNo = `INV-SAAS-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
       await tx.clinicBilling.create({
         data: {
@@ -264,10 +280,158 @@ export class SaasService {
    */
   public static async getSubscription(clinicId: number) {
     const activeSub = await prisma.clinicSubscription.findFirst({
-      where: { clinicId, status: 'active' },
+      where: { clinicId, status: { in: ['active', 'trial', 'cancelled'] } },
       orderBy: { createdAt: 'desc' },
     });
     return activeSub || null;
+  }
+
+  /**
+   * Cancel Active Subscription (Immediately or Scheduled - immediately in this flow)
+   */
+  public static async cancelSubscription(clinicId: number) {
+    const activeSub = await prisma.clinicSubscription.findFirst({
+      where: { clinicId, status: { in: ['active', 'trial'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!activeSub) {
+      throw new AppError('No active or trial subscription found to cancel', 404);
+    }
+
+    return await prisma.clinicSubscription.update({
+      where: { id: activeSub.id },
+      data: { status: 'cancelled' },
+    });
+  }
+
+  /**
+   * Renew Subscription
+   */
+  public static async renewSubscription(clinicId: number) {
+    const activeSub = await prisma.clinicSubscription.findFirst({
+      where: { clinicId, status: { in: ['active', 'trial', 'cancelled'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!activeSub) {
+      throw new AppError('No subscription context found to renew. Please choose a new plan first.', 404);
+    }
+
+    const selectedPlan = SAAS_PLANS[activeSub.planName];
+    if (!selectedPlan) {
+      throw new AppError('Associated plan configuration is invalid', 400);
+    }
+
+    const startDate = new Date();
+    const endDate = new Date();
+    if (activeSub.billingCycle === 'yearly') {
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    } else {
+      endDate.setMonth(endDate.getMonth() + 1);
+    }
+
+    const subscriptionPrice = activeSub.billingCycle === 'yearly' ? selectedPlan.price * 12 * 0.8 : selectedPlan.price;
+
+    return await prisma.$transaction(async (tx) => {
+      // Expire previous subscription
+      await tx.clinicSubscription.updateMany({
+        where: { clinicId, status: { in: ['active', 'trial', 'cancelled'] } },
+        data: { status: 'expired' },
+      });
+
+      // Spawn fresh renewed subscription
+      const sub = await tx.clinicSubscription.create({
+        data: {
+          clinicId,
+          planName: selectedPlan.name,
+          status: 'active',
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          price: subscriptionPrice,
+          billingCycle: activeSub.billingCycle,
+        },
+      });
+
+      // Generate renewal invoice
+      const invoiceNo = `INV-SAAS-RNW-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+      await tx.clinicBilling.create({
+        data: {
+          clinicId,
+          invoiceNo,
+          amount: subscriptionPrice,
+          status: subscriptionPrice === 0 ? 'paid' : 'unpaid',
+          billingDate: startDate.toISOString().split('T')[0],
+          dueDate: new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+      });
+
+      return sub;
+    });
+  }
+
+  /**
+   * Generate highly-detailed, itemized invoice breakdown for SaaS billings
+   */
+  public static async getSaaSInvoiceDetail(clinicId: number, invoiceId: number) {
+    const billing = await prisma.clinicBilling.findFirst({
+      where: { id: invoiceId, clinicId },
+      include: {
+        clinic: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+            address: true,
+          }
+        }
+      }
+    });
+
+    if (!billing) {
+      throw new AppError('Billing record/invoice not found', 404);
+    }
+
+    // Match the closest subscription context
+    const sub = await prisma.clinicSubscription.findFirst({
+      where: { clinicId, createdAt: { lte: billing.createdAt } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const planName = sub?.planName || 'Free';
+    const billingCycle = sub?.billingCycle || 'monthly';
+    const planConfig = SAAS_PLANS[planName];
+
+    // Build standard high-contrast invoice breakdown values
+    const basePrice = planConfig?.price || 0;
+    const isYearly = billingCycle === 'yearly';
+    const listPrice = isYearly ? basePrice * 12 : basePrice;
+    const discount = isYearly ? listPrice * 0.2 : 0; // 20% yearly discount
+    const subtotal = listPrice - discount;
+    const taxRate = 18; // 18% standard VAT/Tax
+    const taxAmount = parseFloat((subtotal * 0.18).toFixed(2));
+    const finalTotal = parseFloat((subtotal + taxAmount).toFixed(2));
+
+    return {
+      id: billing.id,
+      invoiceNo: billing.invoiceNo,
+      amount: billing.amount,
+      status: billing.status,
+      billingDate: billing.billingDate,
+      dueDate: billing.dueDate,
+      clinic: billing.clinic,
+      breakdown: {
+        planName,
+        billingCycle,
+        basePrice,
+        listPrice,
+        discount,
+        subtotal,
+        taxRate,
+        taxAmount,
+        finalTotal,
+      }
+    };
   }
 
   /**
