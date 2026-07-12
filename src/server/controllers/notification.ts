@@ -22,6 +22,13 @@ export class NotificationController {
       if (channel) filters.channel = channel as string;
       if (status) filters.status = status as string;
 
+      // Clinic tenant isolation
+      if (role !== 'superadmin') {
+        filters.clinicId = user.clinicId;
+      } else if (req.query.clinicId) {
+        filters.clinicId = parseInt(req.query.clinicId as string, 10);
+      }
+
       // If patient, restrict to their own notifications
       if (role === 'patient') {
         const patientProfile = await prisma.patient.findFirst({
@@ -49,6 +56,7 @@ export class NotificationController {
   public static async sendCustom(req: Request, res: Response, next: NextFunction) {
     try {
       const { patientId, userId, title, message, type = 'GENERAL', channels } = req.body;
+      const user = (req as any).user;
 
       if (!title || !message || !channels || !Array.isArray(channels) || channels.length === 0) {
         throw new AppError('Missing title, message, or at least one delivery channel', 400);
@@ -57,6 +65,7 @@ export class NotificationController {
       const input = {
         patientId: patientId ? parseInt(patientId, 10) : undefined,
         userId: userId ? parseInt(userId, 10) : undefined,
+        clinicId: user?.clinicId || undefined,
         title,
         message,
         type,

@@ -2,6 +2,8 @@ import { AppointmentRepository, AppointmentFilterInput } from '../repositories/a
 import { prisma } from '../../db/prisma.ts';
 import { CreateAppointmentInput, UpdateAppointmentInput, FilterAppointmentQuery } from '../validation/appointment.ts';
 import { AppError } from '../middleware/errorHandler.ts';
+import { NotificationService } from './notification.ts';
+import { logger } from '../utils/logger.ts';
 
 export class AppointmentService {
   /**
@@ -32,7 +34,23 @@ export class AppointmentService {
       throw new AppError(`Dr. ${doctor.name} is already booked at ${time} on ${date}. Please select another time slot.`, 400);
     }
 
-    return AppointmentRepository.create({ ...input, clinicId });
+    const created = await AppointmentRepository.create({ ...input, clinicId });
+
+    // Trigger confirmation notification asynchronously
+    try {
+      await NotificationService.sendNotification({
+        patientId,
+        clinicId,
+        title: 'Appointment Booked Successfully',
+        message: `Dear ${patient.name}, your appointment with Dr. ${doctor.name} has been scheduled for ${date} at ${time}.`,
+        type: 'APPOINTMENT_REMINDER',
+        channels: ['IN_APP', 'EMAIL'],
+      });
+    } catch (err) {
+      logger.error('Failed to trigger automatic appointment booking notification:', err);
+    }
+
+    return created;
   }
 
   /**
@@ -123,7 +141,35 @@ export class AppointmentService {
       }
     }
 
-    return AppointmentRepository.update(id, input);
+    const updated = await AppointmentRepository.update(id, input);
+
+    // Trigger update or cancellation notifications asynchronously
+    try {
+      const patient = await prisma.patient.findUnique({ where: { id: updated.patientId } });
+      const doctor = await prisma.user.findFirst({ where: { id: updated.doctorId, role: 'doctor' } });
+      if (patient && doctor) {
+        let title = 'Appointment Updated';
+        let message = `Dear ${patient.name}, your appointment with Dr. ${doctor.name} has been updated to ${updated.date} at ${updated.time}.`;
+
+        if (input.status === 'cancelled') {
+          title = 'Appointment Cancelled';
+          message = `Dear ${patient.name}, your appointment with Dr. ${doctor.name} scheduled for ${updated.date} has been cancelled.`;
+        }
+
+        await NotificationService.sendNotification({
+          patientId: updated.patientId,
+          clinicId: updated.clinicId || undefined,
+          title,
+          message,
+          type: 'APPOINTMENT_REMINDER',
+          channels: ['IN_APP', 'EMAIL'],
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to trigger automatic appointment update notification:', err);
+    }
+
+    return updated;
   }
 
   /**

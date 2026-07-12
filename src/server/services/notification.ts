@@ -4,6 +4,7 @@ import { logger } from '../utils/logger.ts';
 export interface SendNotificationInput {
   patientId?: number;
   userId?: number;
+  clinicId?: number;
   title: string;
   message: string;
   type: 'APPOINTMENT_REMINDER' | 'PRESCRIPTION_REMINDER' | 'PAYMENT_REMINDER' | 'GENERAL';
@@ -15,7 +16,7 @@ export class NotificationService {
    * Core reusable dispatch function
    */
   public static async sendNotification(input: SendNotificationInput) {
-    const { patientId, userId, title, message, type, channels } = input;
+    const { patientId, userId, clinicId, title, message, type, channels } = input;
     const results: any[] = [];
 
     // Fetch patient or user to get destination details (email, phone, etc.)
@@ -29,6 +30,7 @@ export class NotificationService {
       userDetails = await prisma.user.findUnique({ where: { id: userId } });
     }
 
+    const resolvedClinicId = clinicId || patientDetails?.clinicId || userDetails?.clinicId || null;
     const emailDest = patientDetails?.email || userDetails?.email || '';
     const phoneDest = patientDetails?.phone || '';
     const recipientName = patientDetails?.name || userDetails?.name || 'Valued Recipient';
@@ -93,6 +95,7 @@ export class NotificationService {
           data: {
             patientId: patientId || null,
             userId: userId || null,
+            clinicId: resolvedClinicId,
             title,
             message,
             type,
@@ -111,6 +114,7 @@ export class NotificationService {
           data: {
             patientId: patientId || null,
             userId: userId || null,
+            clinicId: resolvedClinicId,
             title,
             message,
             type,
@@ -260,17 +264,19 @@ export class NotificationService {
   public static async getHistory(filters: {
     patientId?: number;
     userId?: number;
+    clinicId?: number;
     type?: string;
     channel?: string;
     status?: string;
     skip?: number;
     take?: number;
   }) {
-    const { patientId, userId, type, channel, status, skip = 0, take = 50 } = filters;
+    const { patientId, userId, clinicId, type, channel, status, skip = 0, take = 50 } = filters;
 
     const whereClause: any = {};
     if (patientId) whereClause.patientId = patientId;
     if (userId) whereClause.userId = userId;
+    if (clinicId) whereClause.clinicId = clinicId;
     if (type) whereClause.type = type;
     if (channel) whereClause.channel = channel;
     if (status) whereClause.status = status;

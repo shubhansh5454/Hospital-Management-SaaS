@@ -1,6 +1,8 @@
 import { InvoiceRepository, CreateInvoiceInput } from '../repositories/invoice.ts';
 import { PatientRepository } from '../repositories/patient.ts';
 import { AppError } from '../middleware/errorHandler.ts';
+import { NotificationService } from './notification.ts';
+import { logger } from '../utils/logger.ts';
 
 export class InvoiceService {
   /**
@@ -28,7 +30,16 @@ export class InvoiceService {
       }
     }
 
-    return InvoiceRepository.create(input);
+    const created = await InvoiceRepository.create(input);
+
+    // Auto-trigger an initial billing reminder outreach
+    try {
+      await NotificationService.sendPaymentReminder(created.id, ['EMAIL', 'IN_APP']);
+    } catch (err) {
+      logger.error('Failed to dispatch automatic new invoice billing notification:', err);
+    }
+
+    return created;
   }
 
   /**
@@ -114,6 +125,25 @@ export class InvoiceService {
       throw new AppError(`Payment amount (${data.amount}) exceeds the remaining balance (${remaining})`, 400);
     }
 
-    return InvoiceRepository.recordPayment(invoiceId, data);
+    const recorded = await InvoiceRepository.recordPayment(invoiceId, data);
+
+    // Auto-trigger payment receipt confirmation outreach
+    try {
+      const patient = await PatientRepository.findById(invoice.patientId);
+      if (patient) {
+        await NotificationService.sendNotification({
+          patientId: invoice.patientId,
+          clinicId: invoice.clinicId || undefined,
+          title: `Payment Received: Invoice #${invoice.invoiceNumber}`,
+          message: `Dear ${patient.name}, thank you! We have successfully received and recorded your payment of $${data.amount.toFixed(2)} via ${data.paymentMethod} towards Invoice #${invoice.invoiceNumber}. Your updated remaining balance is $${(invoice.totalAmount - (invoice.amountPaid + data.amount)).toFixed(2)}.`,
+          type: 'PAYMENT_REMINDER',
+          channels: ['EMAIL', 'IN_APP'],
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to dispatch automatic payment receipt notification:', err);
+    }
+
+    return recorded;
   }
 }

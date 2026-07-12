@@ -2,6 +2,8 @@ import { EmrRepository } from '../repositories/emr.ts';
 import { PatientRepository } from '../repositories/patient.ts';
 import { CreateEmrRecordInput, UpdateEmrRecordInput } from '../validation/emr.ts';
 import { AppError } from '../middleware/errorHandler.ts';
+import { NotificationService } from './notification.ts';
+import { logger } from '../utils/logger.ts';
 
 export class EmrService {
   /**
@@ -14,7 +16,18 @@ export class EmrService {
       throw new AppError('Patient not found', 404);
     }
 
-    return EmrRepository.create(doctorId, input);
+    const created = await EmrRepository.create(doctorId, input);
+
+    // If prescriptions are part of the record, auto-trigger patient intake alerts
+    if (created.prescriptions) {
+      try {
+        await NotificationService.sendPrescriptionReminder(created.id, ['IN_APP', 'EMAIL', 'WHATSAPP']);
+      } catch (err) {
+        logger.error('Failed to trigger automatic EMR prescription notification:', err);
+      }
+    }
+
+    return created;
   }
 
   /**
