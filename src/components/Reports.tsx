@@ -178,18 +178,30 @@ export default function Reports() {
   const exportPDF = () => {
     if (!data) return;
 
-    // Create a printable clean pop-up window
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    // Create a hidden iframe
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (!doc) {
+      document.body.removeChild(iframe);
+      return;
+    }
 
     const headers = data.rows && data.rows.length > 0 ? Object.keys(data.rows[0]) : [];
 
-    printWindow.document.write(`
+    doc.write(`
       <html>
       <head>
         <title>CareSync Clinical Report: ${reportType.toUpperCase()}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2 family=Inter:wght@400;500;600;700&display=swap');
           body {
             font-family: 'Inter', sans-serif;
             color: #1e293b;
@@ -201,7 +213,7 @@ export default function Reports() {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-b: 2px solid #e2e8f0;
+            border-bottom: 2px solid #e2e8f0;
             padding-bottom: 20px;
             margin-bottom: 30px;
           }
@@ -243,7 +255,7 @@ export default function Reports() {
             margin-bottom: 5px;
           }
           .summary-value {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: #0f172a;
           }
@@ -251,7 +263,7 @@ export default function Reports() {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
-            font-size: 11px;
+            font-size: 10px;
           }
           th {
             background-color: #f1f5f9;
@@ -293,13 +305,17 @@ export default function Reports() {
 
         <div class="summary-grid">
           ${Object.entries(data.summary || {})
-            .map(
-              ([key, val]: any) => `
-            <div class="summary-card">
-              <div class="summary-label">${key.replace(/([A-Z])/g, ' $1')}</div>
-              <div class="summary-value">${typeof val === 'number' && key.toLowerCase().includes('revenue') ? '$' + val.toLocaleString() : val}</div>
-            </div>`
-            )
+            .map(([key, val]: any) => {
+              const isAmount = key.toLowerCase().includes('revenue') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('invoiced') || key.toLowerCase().includes('collected') || key.toLowerCase().includes('outstanding') || key.toLowerCase().includes('price') || key.toLowerCase().includes('subtotal') || key.toLowerCase().includes('discount');
+              const displayVal = isAmount && typeof val === 'number'
+                ? '$' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : val;
+              return `
+              <div class="summary-card">
+                <div class="summary-label">${key.replace(/([A-Z])/g, ' $1')}</div>
+                <div class="summary-value">${displayVal}</div>
+              </div>`;
+            })
             .join('')}
         </div>
 
@@ -312,12 +328,17 @@ export default function Reports() {
           </thead>
           <tbody>
             ${data.rows
-              .map(
-                (row: any) => `
+              .map((row: any) => `
               <tr>
-                ${headers.map(h => `<td>${row[h] !== null && row[h] !== undefined ? row[h] : ''}</td>`).join('')}
-              </tr>`
-              )
+                ${headers.map(h => {
+                  const val = row[h];
+                  const isAmount = h.toLowerCase().includes('revenue') || h.toLowerCase().includes('amount') || h.toLowerCase().includes('price') || h.toLowerCase().includes('cost') || h.toLowerCase().includes('total') || h.toLowerCase().includes('paid') || h.toLowerCase().includes('discount') || h.toLowerCase().includes('subtotal');
+                  const displayCell = isAmount && typeof val === 'number'
+                    ? '$' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : (val !== null && val !== undefined ? val : '');
+                  return `<td>${displayCell}</td>`;
+                }).join('')}
+              </tr>`)
               .join('')}
           </tbody>
         </table>
@@ -335,7 +356,12 @@ export default function Reports() {
       </html>
     `);
 
-    printWindow.document.close();
+    doc.close();
+
+    // Give iframe a moment to trigger the printing dialog before removal
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 2500);
   };
 
   const getReportIcon = (type: ReportType) => {

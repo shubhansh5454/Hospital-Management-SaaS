@@ -24,12 +24,16 @@ export class ReportsService {
   /**
    * Patient Report
    */
-  public static async getPatientReport(startDate?: string, endDate?: string) {
+  public static async getPatientReport(clinicId?: number, startDate?: string, endDate?: string) {
     const dateFilter = this.getDateFilter(startDate, endDate, 'createdAt');
+    const whereClause: any = { ...dateFilter };
+    if (clinicId) {
+      whereClause.clinicId = clinicId;
+    }
 
     // 1. Fetch Patients
     const patients = await prisma.patient.findMany({
-      where: dateFilter,
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
     });
 
@@ -80,12 +84,15 @@ export class ReportsService {
 
     // 4. Common Diagnoses from EMRs
     const emrs = await prisma.emrRecord.findMany({
-      where: startDate || endDate ? {
-        date: {
-          gte: startDate || undefined,
-          lte: endDate || undefined,
-        }
-      } : {},
+      where: {
+        ...(clinicId ? { patient: { clinicId } } : {}),
+        ...(startDate || endDate ? {
+          date: {
+            gte: startDate || undefined,
+            lte: endDate || undefined,
+          }
+        } : {})
+      },
       select: { diagnosis: true },
     });
 
@@ -128,12 +135,13 @@ export class ReportsService {
   /**
    * Doctor Report
    */
-  public static async getDoctorReport(startDate?: string, endDate?: string) {
+  public static async getDoctorReport(clinicId?: number, startDate?: string, endDate?: string) {
     // 1. Fetch Users with Role Admin/Doctor that have DoctorProfile
     const doctors = await prisma.user.findMany({
       where: {
         role: { in: ['doctor', 'admin'] },
         doctorProfile: { isNot: null },
+        ...(clinicId ? { clinicId } : {}),
       },
       include: {
         doctorProfile: true,
@@ -153,6 +161,7 @@ export class ReportsService {
       const apptsCount = await prisma.appointment.count({
         where: {
           doctorId: d.id,
+          ...(clinicId ? { clinicId } : {}),
           ...(startDate || endDate ? {
             date: {
               gte: startDate || undefined,
@@ -166,6 +175,7 @@ export class ReportsService {
         where: {
           doctorId: d.id,
           status: 'paid',
+          ...(clinicId ? { clinicId } : {}),
           ...(startDate || endDate ? {
             date: {
               gte: startDate || undefined,
@@ -211,12 +221,15 @@ export class ReportsService {
   /**
    * Appointment Report
    */
-  public static async getAppointmentReport(startDate?: string, endDate?: string) {
+  public static async getAppointmentReport(clinicId?: number, startDate?: string, endDate?: string) {
     const filters: any = {};
     if (startDate || endDate) {
       filters.date = {};
       if (startDate) filters.date.gte = startDate;
       if (endDate) filters.date.lte = endDate;
+    }
+    if (clinicId) {
+      filters.clinicId = clinicId;
     }
 
     const appointments = await prisma.appointment.findMany({
@@ -282,12 +295,15 @@ export class ReportsService {
   /**
    * Billing Report
    */
-  public static async getBillingReport(startDate?: string, endDate?: string) {
+  public static async getBillingReport(clinicId?: number, startDate?: string, endDate?: string) {
     const filters: any = {};
     if (startDate || endDate) {
       filters.date = {};
       if (startDate) filters.date.gte = startDate;
       if (endDate) filters.date.lte = endDate;
+    }
+    if (clinicId) {
+      filters.clinicId = clinicId;
     }
 
     const invoices = await prisma.invoice.findMany({
@@ -360,8 +376,10 @@ export class ReportsService {
   /**
    * Pharmacy Report
    */
-  public static async getPharmacyReport(startDate?: string, endDate?: string) {
-    const medicines = await prisma.medicine.findMany({});
+  public static async getPharmacyReport(clinicId?: number, startDate?: string, endDate?: string) {
+    const medicines = await prisma.medicine.findMany({
+      where: clinicId ? { clinicId } : {}
+    });
     const totalMedicines = medicines.length;
 
     // Filtered sales
@@ -370,6 +388,9 @@ export class ReportsService {
       salesFilter.saleDate = {};
       if (startDate) salesFilter.saleDate.gte = startDate;
       if (endDate) salesFilter.saleDate.lte = endDate;
+    }
+    if (clinicId) {
+      salesFilter.medicine = { clinicId };
     }
 
     const sales = await prisma.medicineSale.findMany({
@@ -444,12 +465,15 @@ export class ReportsService {
   /**
    * Lab Report
    */
-  public static async getLabReport(startDate?: string, endDate?: string) {
+  public static async getLabReport(clinicId?: number, startDate?: string, endDate?: string) {
     const filters: any = {};
     if (startDate || endDate) {
       filters.bookingDate = {};
       if (startDate) filters.bookingDate.gte = startDate;
       if (endDate) filters.bookingDate.lte = endDate;
+    }
+    if (clinicId) {
+      filters.clinicId = clinicId;
     }
 
     const labOrders = await prisma.labOrder.findMany({
@@ -521,8 +545,9 @@ export class ReportsService {
   /**
    * Inventory Report
    */
-  public static async getInventoryReport(startDate?: string, endDate?: string) {
+  public static async getInventoryReport(clinicId?: number, startDate?: string, endDate?: string) {
     const products = await prisma.inventoryProduct.findMany({
+      where: clinicId ? { clinicId } : {},
       include: {
         category: true,
       },
@@ -540,6 +565,9 @@ export class ReportsService {
       movementFilter.movementDate = {};
       if (startDate) movementFilter.movementDate.gte = startDate;
       if (endDate) movementFilter.movementDate.lte = endDate;
+    }
+    if (clinicId) {
+      movementFilter.product = { clinicId };
     }
 
     const movements = await prisma.stockMovement.findMany({
