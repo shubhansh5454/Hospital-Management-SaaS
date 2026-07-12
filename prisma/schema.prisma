@@ -29,6 +29,8 @@ model User {
   userPermissions UserPermission[]
   auditLogs       AuditLog[]
   uploadedFiles   ClinicFile[]
+  tenantId      Int?           @map("tenant_id")
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("users")
 }
@@ -469,6 +471,8 @@ model Clinic {
   auditLogs      AuditLog[]
   files          ClinicFile[]
   settings       ClinicSetting?
+  tenantId       Int?                  @map("tenant_id")
+  tenant         Tenant?               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("clinics")
 }
@@ -655,6 +659,19 @@ model ClinicSetting {
   clinic           Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("clinic_settings")
+}
+
+model Tenant {
+  id             Int                  @id @default(autoincrement())
+  name           String
+  slug           String               @unique
+  status         String               @default("active") // "active" | "suspended"
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
+
+  clinics        Clinic[]
+  users          User[]
+
+  @@map("tenants")
 }
 
 

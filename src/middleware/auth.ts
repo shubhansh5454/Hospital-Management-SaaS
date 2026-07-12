@@ -12,8 +12,88 @@ export interface AuthRequest extends Request {
     name: string;
     role: 'superadmin' | 'admin' | 'doctor' | 'receptionist' | 'patient';
     clinicId?: number | null;
+    tenantId?: number | null;
   };
 }
+
+export const resolveTenant = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      return next();
+    }
+
+    // Fetch the freshest tenantId and clinicId from the database
+    const dbUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { tenantId: true, clinicId: true, role: true },
+    });
+
+    if (dbUser) {
+      req.user.tenantId = dbUser.tenantId;
+      req.user.clinicId = dbUser.clinicId;
+    }
+
+    // Check for Tenant / Clinic Switching headers (both case sensitivities)
+    const tenantHeader = req.headers['x-tenant-id'] || 
+                         req.headers['x-clinic-id'] || 
+                         req.headers['X-Tenant-ID'] || 
+                         req.headers['X-Clinic-ID'];
+
+    if (tenantHeader) {
+      const targetTenantId = parseInt(tenantHeader as string, 10);
+      if (isNaN(targetTenantId)) {
+        return res.status(400).json({ error: 'Tenant Isolation: Invalid tenant identifier format' });
+      }
+
+      if (req.user.role === 'superadmin') {
+        // Super Admin Tenant Switching: override active tenant context
+        const targetClinic = await prisma.clinic.findUnique({
+          where: { id: targetTenantId },
+          select: { id: true, tenantId: true },
+        });
+
+        if (!targetClinic) {
+          return res.status(404).json({ error: `Tenant Isolation: Switched clinic/tenant with ID ${targetTenantId} does not exist` });
+        }
+
+        req.user.clinicId = targetClinic.id;
+        req.user.tenantId = targetClinic.tenantId;
+      } else {
+        // Strict Isolation: standard users must match the target context exactly
+        if (req.user.clinicId !== targetTenantId) {
+          return res.status(403).json({
+            error: 'Tenant isolation violation: Access denied. You do not belong to the requested tenant context.'
+          });
+        }
+      }
+    }
+
+    // 3. Enforce onboarding: Non-superadmin users without an active clinic/tenant context must onboard first
+    if (req.user.role !== 'superadmin' && !req.user.clinicId) {
+      const allowedPaths = [
+        '/api/saas/register',
+        '/api/auth',
+        '/api/v1/auth',
+        '/saas/register',
+        '/auth',
+        '/v1/auth'
+      ];
+
+      const isAllowed = allowedPaths.some(p => req.originalUrl.startsWith(p));
+      if (!isAllowed) {
+        return res.status(403).json({
+          error: 'Tenant onboarding required: You must register or join a clinic first to access this resource.',
+          onboardingRequired: true
+        });
+      }
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error resolving tenant context:', error);
+    res.status(500).json({ error: 'Internal server error resolving tenant context' });
+  }
+};
 
 export const requireAuth = async (
   req: AuthRequest,
@@ -42,8 +122,9 @@ export const requireAuth = async (
           name: dbUser.name,
           role: dbUser.role as any,
           clinicId: dbUser.clinicId,
+          tenantId: dbUser.tenantId,
         };
-        return next();
+        return resolveTenant(req, res, next);
       }
     } catch (localJwtError) {
       // If verification failed because it's not a valid local JWT, fall through to Firebase verification
@@ -64,9 +145,10 @@ export const requireAuth = async (
       name: dbUser.name,
       role: dbUser.role as any,
       clinicId: dbUser.clinicId,
+      tenantId: dbUser.tenantId,
     };
 
-    next();
+    return resolveTenant(req, res, next);
   } catch (error) {
     console.error('Error verifying token or syncing user:', error);
     return res.status(401).json({ error: 'Unauthorized: Invalid token or user profile out of sync' });

@@ -74,7 +74,16 @@ export class SaasService {
 
     // Create clinic and its relations inside a Prisma Transaction
     return await prisma.$transaction(async (tx) => {
-      // 1. Create Clinic
+      // 1. Create Tenant
+      const tenant = await tx.tenant.create({
+        data: {
+          name: `${name} Tenant`,
+          slug: slug.toLowerCase(),
+          status: 'active',
+        },
+      });
+
+      // 2. Create Clinic
       const clinic = await tx.clinic.create({
         data: {
           name,
@@ -83,15 +92,17 @@ export class SaasService {
           phone,
           address,
           status: 'active',
+          tenantId: tenant.id,
         },
       });
 
-      // 2. Assign the user as Admin of this clinic
+      // 3. Assign the user as Admin of this clinic and tenant
       await tx.user.update({
         where: { id: userId },
         data: {
           clinicId: clinic.id,
-          role: 'admin', // Owner becomes Clinic Admin
+          tenantId: tenant.id,
+          role: 'admin', // Owner becomes Clinic/Tenant Admin
         },
       });
 
@@ -456,6 +467,11 @@ export class SaasService {
     const hashedPassword = await bcrypt.hash(password || 'Staff123!', salt);
     const mockUid = `local_${crypto.randomUUID()}`;
 
+    const clinic = await prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: { tenantId: true },
+    });
+
     return await prisma.user.create({
       data: {
         name,
@@ -464,6 +480,7 @@ export class SaasService {
         role,
         uid: mockUid,
         clinicId,
+        tenantId: clinic?.tenantId || null,
       },
     });
   }

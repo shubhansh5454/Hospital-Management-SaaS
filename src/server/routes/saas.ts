@@ -11,6 +11,16 @@ router.post('/register', requireAuth, SaasController.registerClinic);
 router.get('/clinic', requireAuth, SaasController.getClinicDetails);
 router.put('/clinic', requireAuth, SaasController.updateClinic);
 
+// Get active tenant/clinic context
+router.get('/active-tenant', requireAuth, (req: any, res) => {
+  res.json({
+    activeClinicId: req.user?.clinicId || null,
+    activeTenantId: req.user?.tenantId || null,
+    role: req.user?.role,
+    isSwitched: req.user?.role === 'superadmin' && (req.headers['x-tenant-id'] !== undefined || req.headers['x-clinic-id'] !== undefined)
+  });
+});
+
 // Super Admin clinic listing and detailed retrieval
 router.get('/clinics', requireAuth, requireRoles(['superadmin']), SaasController.listClinics);
 router.get('/clinics/:id', requireAuth, requireRoles(['superadmin']), SaasController.getClinicDetails);
