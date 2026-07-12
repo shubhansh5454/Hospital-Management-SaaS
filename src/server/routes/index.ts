@@ -18,6 +18,7 @@ import { filesRouter } from './files.ts';
 import { aiRouter } from './ai.ts';
 import { videoRouter } from './video.ts';
 import { insuranceRouter } from './insurance.ts';
+import { hrRouter } from './hr.ts';
 
 const apiRouter = Router();
 
@@ -40,6 +41,7 @@ apiRouter.use('/files', filesRouter);
 apiRouter.use('/ai', aiRouter);
 apiRouter.use('/video', videoRouter);
 apiRouter.use('/insurance', insuranceRouter);
+apiRouter.use('/hr', hrRouter);
 
 
 

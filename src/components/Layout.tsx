@@ -21,7 +21,8 @@ import {
   FileBarChart2,
   Folder,
   Video,
-  Shield
+  Shield,
+  UserCheck
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -56,6 +57,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'ai-assistant', name: 'AI Clinical Suite', icon: Sparkles, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'video-consultation', name: 'Video Consultation', icon: Video, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'insurance', name: 'Insurance & Claims', icon: Shield, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
+    { id: 'hr', name: 'HR Management', icon: UserCheck, roles: ['admin', 'doctor', 'receptionist', 'superadmin'] },
   ];
 
 
