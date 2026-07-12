@@ -13,6 +13,7 @@ import { dashboardRouter } from './dashboard.ts';
 import { notificationRouter } from './notification.ts';
 import { reportsRouter } from './reports.ts';
 import { saasRouter } from './saas.ts';
+import { rolesRouter } from './roles.ts';
 
 const apiRouter = Router();
 
@@ -30,6 +31,7 @@ apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/notifications', notificationRouter);
 apiRouter.use('/reports', reportsRouter);
 apiRouter.use('/saas', saasRouter);
+apiRouter.use('/roles', rolesRouter);
 
 
 

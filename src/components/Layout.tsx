@@ -36,6 +36,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
   const menuItems = [
     { id: 'saas', name: 'SaaS Super Admin', icon: ShieldAlert, roles: ['superadmin'] },
     { id: 'clinic-settings', name: 'Clinic Settings & SaaS', icon: Package, roles: ['admin'] },
+    { id: 'roles-permissions', name: 'Roles & Access Matrix', icon: ShieldAlert, roles: ['admin'] },
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'reception', name: 'Reception & Queue', icon: Clock, roles: ['admin', 'receptionist', 'doctor'] },
     { id: 'emr', name: 'Medical Records', icon: HeartPulse, roles: ['admin', 'doctor', 'receptionist', 'patient'] },

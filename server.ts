@@ -6,9 +6,19 @@ import { logger } from './src/server/utils/logger.ts';
 import { requestLogger } from './src/server/middleware/requestLogger.ts';
 import apiRouter from './src/server/routes/index.ts';
 import { errorHandler } from './src/server/middleware/errorHandler.ts';
+import { RolesService } from './src/server/services/roles.ts';
 
 async function startServer() {
   const app = express();
+  
+  // Seed permissions table
+  try {
+    logger.info('Syncing standard enterprise permissions in database...');
+    await RolesService.seedPermissions();
+    logger.info('Enterprise permissions synced successfully.');
+  } catch (err) {
+    logger.error('Failed to seed standard permissions:', err);
+  }
   
   // Basic middlewares
   app.use(express.json());

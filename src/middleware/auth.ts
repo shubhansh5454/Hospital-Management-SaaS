@@ -87,3 +87,47 @@ export const requireRoles = (allowedRoles: ('superadmin' | 'admin' | 'doctor' | 
     next();
   };
 };
+
+import { RolesService } from '../server/services/roles.ts';
+
+/**
+ * Enterprise permission middleware. Automatically checks user custom roles and direct overrides.
+ */
+export const requirePermission = (permissionCode: string) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized: User identity not verified' });
+    }
+
+    try {
+      // Superadmins have full root access to everything
+      if (req.user.role === 'superadmin') {
+        return next();
+      }
+
+      const permissions = await RolesService.getUserPermissions(req.user.id, req.user.clinicId || null);
+      const perm = permissions.find(p => p.code === permissionCode);
+
+      if (!perm || !perm.allowed) {
+        // Log access denied audit log
+        await RolesService.logAudit(
+          req.user.id,
+          req.user.clinicId || null,
+          'ACCESS_DENIED',
+          permissionCode,
+          `User attempted to access an API requiring permission: ${permissionCode}`,
+          req.ip
+        );
+
+        return res.status(403).json({
+          error: `Forbidden: You do not have the required permission (${permissionCode}) to perform this action.`
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error(`Permission check error for ${permissionCode}:`, error);
+      res.status(500).json({ error: 'Internal server error checking permissions' });
+    }
+  };
+};

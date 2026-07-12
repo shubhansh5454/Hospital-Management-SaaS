@@ -24,6 +24,10 @@ model User {
   queueTokens   QueueToken[]
   notifications Notification[]
   clinic        Clinic?        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  customRoleId  Int?           @map("custom_role_id")
+  customRole    CustomRole?    @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  userPermissions UserPermission[]
+  auditLogs       AuditLog[]
 
   @@map("users")
 }
@@ -459,6 +463,8 @@ model Clinic {
   subscriptions  ClinicSubscription[]
   billings       ClinicBilling[]
   usages         ClinicUsage[]
+  customRoles    CustomRole[]
+  auditLogs      AuditLog[]
 
   @@map("clinics")
 }
@@ -506,6 +512,77 @@ model ClinicUsage {
   clinic            Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("clinic_usages")
+}
+
+model CustomRole {
+  id          Int                  @id @default(autoincrement())
+  name        String
+  description String?
+  clinicId    Int?                 @map("clinic_id")
+  isSystem    Boolean              @default(false) @map("is_system")
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
+  
+  clinic      Clinic?              @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  users       User[]
+
+  @@unique([name, clinicId])
+  @@map("custom_roles")
+}
+
+model Permission {
+  id          Int                  @id @default(autoincrement())
+  code        String               @unique // e.g. "view_appointments", "manage_billing"
+  name        String
+  group       String               // e.g. "Appointments", "Billing"
+  description String?
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
+
+  roles       RolePermission[]
+  users       UserPermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int        @map("role_id")
+  permissionId Int        @map("permission_id")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+
+  role         CustomRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  userId       Int        @map("user_id")
+  permissionId Int        @map("permission_id")
+  value        Boolean    @default(true) // true = grant, false = deny (override)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  clinicId  Int?     @map("clinic_id")
+  action    String   // e.g. "CREATE_APPOINTMENT"
+  resource  String   // e.g. "appointment"
+  details   String?  // JSON string or description
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  clinic    Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
 }
 
 

@@ -17,6 +17,7 @@ import Notifications from './components/Notifications.tsx';
 import Reports from './components/Reports.tsx';
 import SaaSAdmin from './components/SaaSAdmin.tsx';
 import ClinicSettings from './components/ClinicSettings.tsx';
+import AccessManagement from './components/AccessManagement.tsx';
 import { HeartPulse } from 'lucide-react';
 
 
@@ -64,6 +65,7 @@ function AppContent() {
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       {activeTab === 'saas' && <SaaSAdmin />}
       {activeTab === 'clinic-settings' && <ClinicSettings />}
+      {activeTab === 'roles-permissions' && <AccessManagement />}
       {activeTab === 'dashboard' && <Dashboard />}
       {activeTab === 'reception' && <Reception />}
       {activeTab === 'emr' && <Emr />}
