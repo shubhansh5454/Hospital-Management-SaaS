@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './components/AuthContext.tsx';
 import AuthScreen from './components/AuthScreen.tsx';
+import PatientPortal from './components/PatientPortal.tsx';
 import Layout from './components/Layout.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import Reception from './components/Reception.tsx';
@@ -72,6 +73,10 @@ function AppContent() {
 
   if (!user) {
     return <AuthScreen />;
+  }
+
+  if (profile?.role === 'patient') {
+    return <PatientPortal />;
   }
 
   return (
