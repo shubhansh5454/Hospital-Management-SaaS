@@ -996,6 +996,672 @@ export default function ClinicSettings() {
           </div>
         </div>
       )}
+
+      {/* System Settings Form Area */}
+      {activeSubTab === 'system' && (
+        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+          <div className="border-b border-slate-100 bg-slate-50/50 p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">System & Hospital Configuration</h3>
+              <p className="text-[11px] text-slate-400">Configure core hospital behaviors, scheduling limits, consultation fees, regional preferences, and notification channels.</p>
+            </div>
+            {profile?.role === 'admin' || profile?.role === 'superadmin' ? (
+              <button
+                onClick={() => handleSaveSystemSettings()}
+                disabled={saveSettingsMutation.isPending}
+                className="h-9 px-4 bg-teal-50 hover:bg-teal-600 text-white rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+              >
+                <Save className="w-4 h-4" />
+                {saveSettingsMutation.isPending ? 'Saving Configuration...' : 'Save Configuration'}
+              </button>
+            ) : (
+              <div className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                <Shield className="w-3.5 h-3.5" />
+                <span>View-only (Admin privileges required to save)</span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 min-h-[500px]">
+            {/* Sidebar navigation for system configurations */}
+            <div className="border-r border-slate-100 p-4 space-y-1 bg-slate-50/30">
+              <button
+                type="button"
+                onClick={() => setSystemActiveTab('info')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition cursor-pointer ${
+                  systemActiveTab === 'info' ? 'bg-teal-50 text-teal-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Hospital & Departments</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSystemActiveTab('clinical')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition cursor-pointer ${
+                  systemActiveTab === 'clinical' ? 'bg-teal-50 text-teal-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <DollarSign className="w-4 h-4" />
+                <span>Fees & Scheduling Slots</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSystemActiveTab('timing')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition cursor-pointer ${
+                  systemActiveTab === 'timing' ? 'bg-teal-50 text-teal-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                <span>Working Hours & Holidays</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSystemActiveTab('billing')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition cursor-pointer ${
+                  systemActiveTab === 'billing' ? 'bg-teal-50 text-teal-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Percent className="w-4 h-4" />
+                <span>Taxes & Localization</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSystemActiveTab('comms')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition cursor-pointer ${
+                  systemActiveTab === 'comms' ? 'bg-teal-50 text-teal-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                <span>Notification Settings</span>
+              </button>
+            </div>
+
+            {/* Config details section */}
+            <div className="md:col-span-3 p-6">
+              {settingsLoading ? (
+                <div className="flex flex-col items-center justify-center h-64 text-slate-400 text-xs">
+                  <span className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-500 mb-2"></span>
+                  Loading system specifications...
+                </div>
+              ) : (
+                <form onSubmit={handleSaveSystemSettings} className="space-y-6">
+                  {/* TAB 1: Hospital Info */}
+                  {systemActiveTab === 'info' && (
+                    <div className="space-y-6 animate-fadeIn">
+                      <div className="border-b border-slate-50 pb-3">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Hospital Registry Details</h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Define standard details for printed invoices, prescription headers, and outgoing reports.</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Hospital/Clinic Name</label>
+                          <input
+                            type="text"
+                            value={hospitalName}
+                            onChange={(e) => setHospitalName(e.target.value)}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                            placeholder="e.g. City General Hospital"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unique Code (Prefix)</label>
+                          <input
+                            type="text"
+                            value={hospitalCode}
+                            onChange={(e) => setHospitalCode(e.target.value)}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                            placeholder="e.g. CGH"
+                          />
+                        </div>
+
+                        <div className="space-y-1 md:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Complete Physical Address</label>
+                          <input
+                            type="text"
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                            placeholder="e.g. 101 medical road, suite 4B"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Primary Contact Number</label>
+                          <input
+                            type="text"
+                            value={contactNumber}
+                            onChange={(e) => setContactNumber(e.target.value)}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                            placeholder="e.g. +1 (555) 019-2834"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Official Website (URL)</label>
+                          <input
+                            type="text"
+                            value={website}
+                            onChange={(e) => setWebsite(e.target.value)}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                            placeholder="e.g. https://cityhospital.com"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Departments Management */}
+                      <div className="border-t border-slate-50 pt-5 space-y-4">
+                        <div className="space-y-0.5">
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Clinical Departments</h4>
+                          <p className="text-[10px] text-slate-400">List of departments active in this facility. Used for doctor classification and scheduling routing.</p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newDept}
+                            onChange={(e) => setNewDept(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddDept(); } }}
+                            className="flex-1 h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-teal-500"
+                            placeholder="Add department name..."
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddDept}
+                            className="h-9 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200/60 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Add</span>
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {departments.length === 0 ? (
+                            <span className="text-[10px] text-slate-400 italic">No departments listed. Use the builder above to register departments.</span>
+                          ) : (
+                            departments.map((dept) => (
+                              <span key={dept} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/30">
+                                {dept}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveDept(dept)}
+                                  className="text-slate-400 hover:text-red-500 rounded-full transition-colors ml-1 focus:outline-none"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: Clinical & Fees */}
+                  {systemActiveTab === 'clinical' && (
+                    <div className="space-y-6 animate-fadeIn">
+                      <div className="border-b border-slate-50 pb-3">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Clinical Consultations & Scheduling Constraints</h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Control pricing metrics, booking slot windows, and daily patient constraints.</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Default Consultation Fee ({currency})</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">{currency}</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={consultationFees}
+                              onChange={(e) => setConsultationFees(parseFloat(e.target.value) || 0)}
+                              className="w-full h-9 pl-12 pr-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                            />
+                          </div>
+                          <p className="text-[9px] text-slate-400">Baseline charge for physical and tele-consult appointments.</p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Appointment Slot Duration (Minutes)</label>
+                          <select
+                            value={slotDuration}
+                            onChange={(e) => setSlotDuration(parseInt(e.target.value))}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500 cursor-pointer"
+                          >
+                            <option value={10}>10 Minutes</option>
+                            <option value={15}>15 Minutes</option>
+                            <option value={20}>20 Minutes</option>
+                            <option value={30}>30 Minutes</option>
+                            <option value={45}>45 Minutes</option>
+                            <option value={60}>60 Minutes (1 hour)</option>
+                          </select>
+                          <p className="text-[9px] text-slate-400">Standard consulting slot duration allocated for scheduling timelines.</p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Max Slots per Day (Per Clinician)</label>
+                          <input
+                            type="number"
+                            value={maxSlotsPerDay}
+                            onChange={(e) => setMaxSlotsPerDay(parseInt(e.target.value) || 0)}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                          />
+                          <p className="text-[9px] text-slate-400">Hard limit on daily automated slots generated to protect doctor bandwidth.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: Timing & Holidays */}
+                  {systemActiveTab === 'timing' && (
+                    <div className="space-y-6 animate-fadeIn">
+                      <div className="border-b border-slate-50 pb-3">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Working Hours & Holiday Blackouts</h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Control the clinic's operating days, timing boundaries, and scheduled blackout dates.</p>
+                      </div>
+
+                      {/* Daily times */}
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Operating Hours</label>
+                        <div className="space-y-2 border border-slate-100/80 rounded-xl p-4 bg-slate-50/20">
+                          {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                            const config = workingHours[day] || { enabled: false, start: '09:00', end: '17:00' };
+                            return (
+                              <div key={day} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+                                <div className="flex items-center gap-2 w-32 shrink-0">
+                                  <input
+                                    type="checkbox"
+                                    id={`day-${day}`}
+                                    checked={config.enabled}
+                                    onChange={() => handleToggleDay(day)}
+                                    className="rounded border-slate-200 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                                  />
+                                  <label htmlFor={`day-${day}`} className="text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                                    {day}
+                                  </label>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <input
+                                    type="time"
+                                    value={config.start || '09:00'}
+                                    disabled={!config.enabled}
+                                    onChange={(e) => handleWorkingHourChange(day, 'start', e.target.value)}
+                                    className="h-8 px-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                                  />
+                                  <span className="text-xs text-slate-400 font-medium">to</span>
+                                  <input
+                                    type="time"
+                                    value={config.end || '17:00'}
+                                    disabled={!config.enabled}
+                                    onChange={(e) => handleWorkingHourChange(day, 'end', e.target.value)}
+                                    className="h-8 px-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Holidays */}
+                      <div className="border-t border-slate-50 pt-5 space-y-4">
+                        <div className="space-y-0.5">
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Holidays & Maintenance Shutdowns</h4>
+                          <p className="text-[10px] text-slate-400">Blackout dates during which appointments cannot be booked on the scheduler.</p>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <input
+                            type="date"
+                            value={newHolidayDate}
+                            onChange={(e) => setNewHolidayDate(e.target.value)}
+                            className="h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-teal-500"
+                          />
+                          <input
+                            type="text"
+                            value={newHolidayName}
+                            onChange={(e) => setNewHolidayName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddHoliday(); } }}
+                            className="flex-1 h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-teal-500"
+                            placeholder="Holiday name / Occasion..."
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddHoliday}
+                            className="h-9 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200/60 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Add Blackout</span>
+                          </button>
+                        </div>
+
+                        <div className="space-y-1">
+                          {holidays.length === 0 ? (
+                            <span className="text-[10px] text-slate-400 italic">No custom clinic holiday blackouts listed.</span>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {holidays.map((h) => (
+                                <div key={h.date} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/30 rounded-xl text-xs">
+                                  <div className="space-y-0.5">
+                                    <span className="font-bold text-slate-700">{h.name}</span>
+                                    <p className="text-[9px] font-mono text-slate-400">{new Date(h.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveHoliday(h.date)}
+                                    className="text-slate-400 hover:text-red-500 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 4: Taxes & Localization */}
+                  {systemActiveTab === 'billing' && (
+                    <div className="space-y-6 animate-fadeIn">
+                      <div className="border-b border-slate-50 pb-3">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Taxes & Localization Settings</h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Configure billing variables, tax applications, currencies, and languages.</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tax ID Name (e.g., GST / VAT / Sales Tax)</label>
+                          <input
+                            type="text"
+                            value={taxName}
+                            onChange={(e) => setTaxName(e.target.value)}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                            placeholder="e.g. GST"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tax Rate (%)</label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={taxRate}
+                              onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                              className="w-full h-9 pr-8 pl-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                            />
+                            <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">%</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Currency Profile</label>
+                          <select
+                            value={currency}
+                            onChange={(e) => setCurrency(e.target.value)}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500 cursor-pointer"
+                          >
+                            <option value="USD">USD ($) - United States Dollar</option>
+                            <option value="EUR">EUR (€) - Euro</option>
+                            <option value="GBP">GBP (£) - British Pound Sterling</option>
+                            <option value="INR">INR (₹) - Indian Rupee</option>
+                            <option value="AUD">AUD ($) - Australian Dollar</option>
+                            <option value="CAD">CAD ($) - Canadian Dollar</option>
+                            <option value="SGD">SGD ($) - Singapore Dollar</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Interface Language</label>
+                          <select
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value)}
+                            className="w-full h-9 px-3 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500 cursor-pointer"
+                          >
+                            <option value="en">English (US)</option>
+                            <option value="es">Español (Spanish)</option>
+                            <option value="fr">Français (French)</option>
+                            <option value="hi">हिन्दी (Hindi)</option>
+                            <option value="ar">العربية (Arabic)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 5: Comms Integrations */}
+                  {systemActiveTab === 'comms' && (
+                    <div className="space-y-6 animate-fadeIn">
+                      <div className="border-b border-slate-50 pb-3">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Outgoing Alerts & Communication Gateways</h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Configure transactional relays for dispatching appointment receipts, prescription summaries, and clinical updates.</p>
+                      </div>
+
+                      {/* Outgoing Email Gateway Settings */}
+                      <div className="space-y-4 border border-slate-100/80 rounded-xl p-4 bg-slate-50/20">
+                        <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                              <Mail className="w-4 h-4 text-sky-500" />
+                              SMTP Email Delivery
+                            </span>
+                            <p className="text-[9px] text-slate-400">Used for emailing prescription transcripts and appointment cards.</p>
+                          </div>
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id="emailEnabled"
+                              checked={emailEnabled}
+                              onChange={(e) => setEmailEnabled(e.target.checked)}
+                              className="rounded border-slate-200 text-teal-600 focus:ring-teal-500 cursor-pointer w-4 h-4"
+                            />
+                            <label htmlFor="emailEnabled" className="text-xs font-bold text-slate-500 ml-1.5 cursor-pointer select-none">Enable Relay</label>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1 col-span-2">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">SMTP Server Host</label>
+                            <input
+                              type="text"
+                              value={emailHost}
+                              onChange={(e) => setEmailHost(e.target.value)}
+                              disabled={!emailEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="smtp.gmail.com"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">SMTP Port</label>
+                            <input
+                              type="number"
+                              value={emailPort}
+                              onChange={(e) => setEmailPort(e.target.value)}
+                              disabled={!emailEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="587"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Authorized Username</label>
+                            <input
+                              type="text"
+                              value={emailUser}
+                              onChange={(e) => setEmailUser(e.target.value)}
+                              disabled={!emailEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="noreply@hospital.com"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Secret Password</label>
+                            <input
+                              type="password"
+                              value={emailPassword}
+                              onChange={(e) => setEmailPassword(e.target.value)}
+                              disabled={!emailEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="••••••••"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Sender Address</label>
+                            <input
+                              type="text"
+                              value={emailFrom}
+                              onChange={(e) => setEmailFrom(e.target.value)}
+                              disabled={!emailEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="noreply@hospital.com"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* SMS Configuration */}
+                      <div className="space-y-4 border border-slate-100/80 rounded-xl p-4 bg-slate-50/20">
+                        <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                              <MessageSquare className="w-4 h-4 text-emerald-500" />
+                              SMS Service Gateway
+                            </span>
+                            <p className="text-[9px] text-slate-400">Used for dispatching real-time appointment reminders and check-in tokens.</p>
+                          </div>
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id="smsEnabled"
+                              checked={smsEnabled}
+                              onChange={(e) => setSmsEnabled(e.target.checked)}
+                              className="rounded border-slate-200 text-teal-600 focus:ring-teal-500 cursor-pointer w-4 h-4"
+                            />
+                            <label htmlFor="smsEnabled" className="text-xs font-bold text-slate-500 ml-1.5 cursor-pointer select-none">Enable Relay</label>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Provider Gateway</label>
+                            <select
+                              value={smsGateway}
+                              onChange={(e) => setSmsGateway(e.target.value)}
+                              disabled={!smsEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50 cursor-pointer"
+                            >
+                              <option value="twilio">Twilio Messaging API</option>
+                              <option value="infobip">Infobip API Gateway</option>
+                              <option value="aws">Amazon SNS Gateway</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Sender Mobile / SID</label>
+                            <input
+                              type="text"
+                              value={smsFrom}
+                              onChange={(e) => setSmsFrom(e.target.value)}
+                              disabled={!smsEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="+15550192"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Account SID / API Key</label>
+                            <input
+                              type="text"
+                              value={smsSid}
+                              onChange={(e) => setSmsSid(e.target.value)}
+                              disabled={!smsEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="AC..."
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Auth Secret Token</label>
+                            <input
+                              type="password"
+                              value={smsToken}
+                              onChange={(e) => setSmsToken(e.target.value)}
+                              disabled={!smsEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="••••••••"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* WhatsApp API Configuration */}
+                      <div className="space-y-4 border border-slate-100/80 rounded-xl p-4 bg-slate-50/20">
+                        <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                              <MessageCircle className="w-4 h-4 text-green-500" />
+                              WhatsApp Business Alerts
+                            </span>
+                            <p className="text-[9px] text-slate-400">Used for interactive digital prescriptions and live clinic updates.</p>
+                          </div>
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id="waEnabled"
+                              checked={waEnabled}
+                              onChange={(e) => setWaEnabled(e.target.checked)}
+                              className="rounded border-slate-200 text-teal-600 focus:ring-teal-500 cursor-pointer w-4 h-4"
+                            />
+                            <label htmlFor="waEnabled" className="text-xs font-bold text-slate-500 ml-1.5 cursor-pointer select-none">Enable Relay</label>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Provider Gateway</label>
+                            <select
+                              value={waGateway}
+                              onChange={(e) => setWaGateway(e.target.value)}
+                              disabled={!waEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50 cursor-pointer"
+                            >
+                              <option value="whatsapp">Meta Official Cloud API</option>
+                              <option value="twilio">Twilio Sandbox for WhatsApp</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Business Number ID</label>
+                            <input
+                              type="text"
+                              value={waNumber}
+                              onChange={(e) => setWaNumber(e.target.value)}
+                              disabled={!waEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="+15551234"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Permanent Access Token</label>
+                            <input
+                              type="password"
+                              value={waToken}
+                              onChange={(e) => setWaToken(e.target.value)}
+                              disabled={!waEnabled}
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+                              placeholder="EAAC..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
