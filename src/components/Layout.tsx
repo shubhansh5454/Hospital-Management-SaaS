@@ -19,7 +19,8 @@ import {
   Package,
   Bell,
   FileBarChart2,
-  Folder
+  Folder,
+  Video
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -52,6 +53,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'reports', name: 'Reports & Analytics', icon: FileBarChart2, roles: ['admin', 'doctor', 'receptionist'] },
     { id: 'documents', name: 'Document Center', icon: Folder, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'ai-assistant', name: 'AI Clinical Suite', icon: Sparkles, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
+    { id: 'video-consultation', name: 'Video Consultation', icon: Video, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
   ];
 
 

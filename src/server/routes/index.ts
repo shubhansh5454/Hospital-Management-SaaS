@@ -16,6 +16,7 @@ import { saasRouter } from './saas.ts';
 import { rolesRouter } from './roles.ts';
 import { filesRouter } from './files.ts';
 import { aiRouter } from './ai.ts';
+import { videoRouter } from './video.ts';
 
 const apiRouter = Router();
 
@@ -36,6 +37,7 @@ apiRouter.use('/saas', saasRouter);
 apiRouter.use('/roles', rolesRouter);
 apiRouter.use('/files', filesRouter);
 apiRouter.use('/ai', aiRouter);
+apiRouter.use('/video', videoRouter);
 
 
 

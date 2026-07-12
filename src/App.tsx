@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './components/AuthContext.tsx';
 import AuthScreen from './components/AuthScreen.tsx';
@@ -20,6 +20,7 @@ import ClinicSettings from './components/ClinicSettings.tsx';
 import AccessManagement from './components/AccessManagement.tsx';
 import Documents from './components/Documents.tsx';
 import AIAssistant from './components/AIAssistant.tsx';
+import VideoConsultation from './components/VideoConsultation.tsx';
 import { HeartPulse } from 'lucide-react';
 
 
@@ -42,6 +43,13 @@ function AppContent() {
       setActiveTab('saas');
     }
   });
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('join')) {
+      setActiveTab('video-consultation');
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -82,6 +90,7 @@ function AppContent() {
       {activeTab === 'reports' && <Reports />}
       {activeTab === 'documents' && <Documents />}
       {activeTab === 'ai-assistant' && <AIAssistant />}
+      {activeTab === 'video-consultation' && <VideoConsultation />}
     </Layout>
 
 
