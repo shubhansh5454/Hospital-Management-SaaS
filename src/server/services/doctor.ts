@@ -2,6 +2,7 @@ import { DoctorRepository } from '../repositories/doctor.ts';
 import { CreateDoctorInput, UpdateDoctorInput, ScheduleInput, LeaveInput } from '../validation/doctor.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { prisma } from '../../db/prisma.ts';
+import { logger } from '../utils/logger.ts';
 
 export class DoctorService {
   /**
@@ -71,7 +72,19 @@ export class DoctorService {
     if (!doctor.doctorProfile) {
       throw new AppError('Doctor profile does not exist', 400);
     }
-    return DoctorRepository.addSchedule(doctor.doctorProfile.id, schedule);
+    const result = await DoctorRepository.addSchedule(doctor.doctorProfile.id, schedule);
+
+    // Broadcast doctor availability change in real-time
+    if (doctor.clinicId) {
+      try {
+        const { RealTimeService } = await import('./realtime.ts');
+        RealTimeService.broadcastDoctorAvailabilityUpdate(doctor.clinicId, doctor.doctorProfile.id, 'schedule_added');
+      } catch (wsErr) {
+        logger.error('Failed to broadcast real-time doctor availability:', wsErr);
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -90,6 +103,17 @@ export class DoctorService {
     }
 
     await DoctorRepository.deleteSchedule(scheduleId);
+
+    // Broadcast doctor availability change in real-time
+    if (doctor.clinicId) {
+      try {
+        const { RealTimeService } = await import('./realtime.ts');
+        RealTimeService.broadcastDoctorAvailabilityUpdate(doctor.clinicId, doctor.doctorProfile.id, 'schedule_deleted');
+      } catch (wsErr) {
+        logger.error('Failed to broadcast real-time doctor availability:', wsErr);
+      }
+    }
+
     return { success: true, message: 'Schedule successfully deleted' };
   }
 
@@ -101,7 +125,19 @@ export class DoctorService {
     if (!doctor.doctorProfile) {
       throw new AppError('Doctor profile does not exist', 400);
     }
-    return DoctorRepository.addLeave(doctor.doctorProfile.id, leave);
+    const result = await DoctorRepository.addLeave(doctor.doctorProfile.id, leave);
+
+    // Broadcast doctor availability change in real-time
+    if (doctor.clinicId) {
+      try {
+        const { RealTimeService } = await import('./realtime.ts');
+        RealTimeService.broadcastDoctorAvailabilityUpdate(doctor.clinicId, doctor.doctorProfile.id, 'leave_added');
+      } catch (wsErr) {
+        logger.error('Failed to broadcast real-time doctor availability:', wsErr);
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -120,6 +156,17 @@ export class DoctorService {
     }
 
     await DoctorRepository.deleteLeave(leaveId);
+
+    // Broadcast doctor availability change in real-time
+    if (doctor.clinicId) {
+      try {
+        const { RealTimeService } = await import('./realtime.ts');
+        RealTimeService.broadcastDoctorAvailabilityUpdate(doctor.clinicId, doctor.doctorProfile.id, 'leave_deleted');
+      } catch (wsErr) {
+        logger.error('Failed to broadcast real-time doctor availability:', wsErr);
+      }
+    }
+
     return { success: true, message: 'Leave record successfully deleted' };
   }
 

@@ -36,6 +36,16 @@ export class AppointmentService {
 
     const created = await AppointmentRepository.create({ ...input, clinicId });
 
+    // Broadcast appointment creation in real-time
+    if (created.clinicId) {
+      try {
+        const { RealTimeService } = await import('./realtime.ts');
+        RealTimeService.broadcastAppointmentUpdate(created.clinicId, 'created', created);
+      } catch (wsErr) {
+        logger.error('Failed to broadcast real-time appointment:created event:', wsErr);
+      }
+    }
+
     // Trigger confirmation notification asynchronously
     try {
       await NotificationService.sendNotification({
@@ -143,6 +153,17 @@ export class AppointmentService {
 
     const updated = await AppointmentRepository.update(id, input);
 
+    // Broadcast appointment update in real-time
+    if (updated.clinicId) {
+      try {
+        const { RealTimeService } = await import('./realtime.ts');
+        const changeType = input.status === 'cancelled' ? 'cancelled' : 'updated';
+        RealTimeService.broadcastAppointmentUpdate(updated.clinicId, changeType, updated);
+      } catch (wsErr) {
+        logger.error('Failed to broadcast real-time appointment:updated event:', wsErr);
+      }
+    }
+
     // Trigger update or cancellation notifications asynchronously
     try {
       const patient = await prisma.patient.findUnique({ where: { id: updated.patientId } });
@@ -176,8 +197,19 @@ export class AppointmentService {
    * Delete an appointment
    */
   public static async deleteAppointment(id: number) {
-    await this.getAppointmentById(id);
+    const appointment = await this.getAppointmentById(id);
     await AppointmentRepository.delete(id);
+
+    // Broadcast appointment deletion/update in real-time
+    if (appointment.clinicId) {
+      try {
+        const { RealTimeService } = await import('./realtime.ts');
+        RealTimeService.broadcastAppointmentUpdate(appointment.clinicId, 'updated', { id, deleted: true });
+      } catch (wsErr) {
+        logger.error('Failed to broadcast real-time appointment:deleted event:', wsErr);
+      }
+    }
+
     return { success: true, message: 'Appointment successfully deleted' };
   }
 }

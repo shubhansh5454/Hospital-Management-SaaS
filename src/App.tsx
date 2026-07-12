@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './components/AuthContext.tsx';
+import { RealTimeProvider } from './components/RealTimeContext.tsx';
 import AuthScreen from './components/AuthScreen.tsx';
 import PatientPortal from './components/PatientPortal.tsx';
 import Layout from './components/Layout.tsx';
@@ -112,7 +113,9 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppContent />
+        <RealTimeProvider>
+          <AppContent />
+        </RealTimeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

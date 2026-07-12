@@ -50,9 +50,18 @@ async function startServer() {
   app.use(errorHandler);
 
   const PORT = parseInt(env.PORT, 10);
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     logger.info(`🏥 Hospital SaaS Server running successfully on http://0.0.0.0:${PORT}`);
   });
+
+  // Initialize Real-Time WebSocket Gateway on Port 3000
+  try {
+    const { RealTimeService } = await import('./src/server/services/realtime.ts');
+    RealTimeService.init(server);
+    logger.info('🔌 Real-Time WebSocket Gateway started successfully alongside HTTP Server.');
+  } catch (err) {
+    logger.error('Critical failure: Failed to boot Real-Time WebSocket server:', err);
+  }
 }
 
 startServer().catch((err) => {

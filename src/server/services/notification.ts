@@ -105,6 +105,21 @@ export class NotificationService {
           },
         });
 
+        // Live Real-Time push for In-App and Push notification channels
+        if (channel === 'IN_APP' || channel === 'PUSH') {
+          try {
+            const { RealTimeService } = await import('./realtime.ts');
+            RealTimeService.broadcastNotification(
+              userId || null,
+              patientId || null,
+              resolvedClinicId ? Number(resolvedClinicId) : null,
+              createdNotification
+            );
+          } catch (wsErr) {
+            logger.error('Failed to dispatch real-time WebSocket notification:', wsErr);
+          }
+        }
+
         results.push(createdNotification);
       } catch (err: any) {
         logger.error(`Failed to send notification via ${channel}:`, err);

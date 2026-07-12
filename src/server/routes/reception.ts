@@ -157,6 +157,7 @@ router.post('/checkin', async (req, res, next) => {
           appointmentId: appointment.id,
           doctorId: appointment.doctorId,
           status: 'WAITING',
+          clinicId: appointment.clinicId || (req as any).user?.clinicId,
         },
         include: {
           patient: true,
@@ -172,6 +173,16 @@ router.post('/checkin', async (req, res, next) => {
 
       return token;
     });
+
+    // Real-Time Queue Update Broadcast
+    if (result.clinicId) {
+      try {
+        const { RealTimeService } = await import('../services/realtime.ts');
+        RealTimeService.broadcastQueueUpdate(result.clinicId, 'created', result);
+      } catch (wsErr) {
+        console.error('Failed to broadcast real-time queue update:', wsErr);
+      }
+    }
 
     res.status(201).json(result);
   } catch (error) {
@@ -230,6 +241,7 @@ router.post('/token/manual', async (req, res, next) => {
           doctorId: Number(doctorId),
           status: 'WAITING',
           notes: notes || '',
+          clinicId: (req as any).user?.clinicId,
         },
         include: {
           patient: true,
@@ -239,6 +251,16 @@ router.post('/token/manual', async (req, res, next) => {
 
       return token;
     });
+
+    // Real-Time Queue Update Broadcast
+    if (result.clinicId) {
+      try {
+        const { RealTimeService } = await import('../services/realtime.ts');
+        RealTimeService.broadcastQueueUpdate(result.clinicId, 'created', result);
+      } catch (wsErr) {
+        console.error('Failed to broadcast real-time queue update:', wsErr);
+      }
+    }
 
     res.status(201).json(result);
   } catch (error) {
@@ -321,6 +343,7 @@ router.post('/walkin', async (req, res, next) => {
           doctorId: Number(doctorId),
           status: 'WAITING',
           notes: notes || '',
+          clinicId: (req as any).user?.clinicId,
         },
         include: {
           patient: true,
@@ -330,6 +353,17 @@ router.post('/walkin', async (req, res, next) => {
 
       return { patient, appointment, token };
     });
+
+    // Real-Time Queue Update Broadcast
+    const targetClinicId = result.token.clinicId || (req as any).user?.clinicId;
+    if (targetClinicId) {
+      try {
+        const { RealTimeService } = await import('../services/realtime.ts');
+        RealTimeService.broadcastQueueUpdate(targetClinicId, 'created', result.token);
+      } catch (wsErr) {
+        console.error('Failed to broadcast real-time queue update:', wsErr);
+      }
+    }
 
     res.status(201).json(result);
   } catch (error) {
@@ -394,6 +428,17 @@ router.put('/token/:id/status', async (req, res, next) => {
 
       return updated;
     });
+
+    // Real-Time Queue Update Broadcast
+    const updatedClinicId = updatedToken.clinicId || (req as any).user?.clinicId;
+    if (updatedClinicId) {
+      try {
+        const { RealTimeService } = await import('../services/realtime.ts');
+        RealTimeService.broadcastQueueUpdate(updatedClinicId, 'updated', updatedToken);
+      } catch (wsErr) {
+        console.error('Failed to broadcast real-time queue update:', wsErr);
+      }
+    }
 
     res.json(updatedToken);
   } catch (error) {

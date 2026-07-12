@@ -1,5 +1,6 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext.tsx';
+import { useRealTime } from './RealTimeContext.tsx';
 import { 
   HeartPulse, 
   LayoutDashboard, 
@@ -33,10 +34,39 @@ interface LayoutProps {
   setActiveTab: (tab: string) => void;
 }
 
+interface ToastItem {
+  id: number;
+  title: string;
+  message: string;
+}
+
 export default function Layout({ children, activeTab, setActiveTab }: LayoutProps) {
   const { profile, logout, updateRoleInProfile, refreshProfile } = useAuth();
+  const { isConnected } = useRealTime();
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  // Listen for global real-time notifications
+  useEffect(() => {
+    const handleToast = (e: Event) => {
+      const customEvent = e as CustomEvent<ToastItem>;
+      if (customEvent.detail) {
+        const { title, message, id } = customEvent.detail;
+        setToasts((prev) => [...prev, { id, title, message }]);
+        
+        // Auto-remove toast after 5 seconds
+        setTimeout(() => {
+          setToasts((prev) => prev.filter((t) => t.id !== id));
+        }, 5000);
+      }
+    };
+
+    window.addEventListener('sanctuary-live-toast', handleToast);
+    return () => {
+      window.removeEventListener('sanctuary-live-toast', handleToast);
+    };
+  }, []);
 
   const menuItems = [
     { id: 'saas', name: 'SaaS Super Admin', icon: ShieldAlert, roles: ['superadmin'] },
@@ -156,6 +186,14 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-teal-500' : ''}`} />
             </button>
+
+            {/* Live Gateway Connection Indicator */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-lg">
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-teal-500 shadow-[0_0_8px_#14b8a6]' : 'bg-rose-400 shadow-[0_0_8px_#fb7185]'} animate-pulse`} />
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider select-none">
+                {isConnected ? 'Real-Time Live' : 'Offline (Reconnecting)'}
+              </span>
+            </div>
           </div>
 
           {/* Sandbox Role Switcher Controller */}
@@ -204,6 +242,27 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
         <main className="flex-1 p-8 overflow-y-auto">
           {children}
         </main>
+      </div>
+
+      {/* Floating Real-Time Toast Notification Gateway Portal */}
+      <div id="live_toast_portal" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm w-full select-none">
+        {toasts.map((t) => (
+          <div 
+            key={t.id} 
+            className="bg-white/95 backdrop-blur-sm border-l-4 border-teal-500 shadow-[0_10px_30px_rgba(0,0,0,0.08)] rounded-xl p-4 flex flex-col gap-1 transition-all duration-300 transform translate-y-0 scale-100 border border-slate-100/50 hover:scale-[1.01]"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span className="font-display font-bold text-xs text-slate-800 tracking-tight">{t.title}</span>
+              <button 
+                onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))} 
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer w-4 h-4 flex items-center justify-center rounded-full hover:bg-slate-50"
+              >
+                &times;
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed font-sans">{t.message}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
