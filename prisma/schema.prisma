@@ -28,6 +28,7 @@ model User {
   customRole    CustomRole?    @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   userPermissions UserPermission[]
   auditLogs       AuditLog[]
+  uploadedFiles   ClinicFile[]
 
   @@map("users")
 }
@@ -53,6 +54,7 @@ model Patient {
   queueTokens    QueueToken[]
   notifications  Notification[]
   clinic         Clinic?       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  files          ClinicFile[]
 
   @@map("patients")
 }
@@ -465,6 +467,7 @@ model Clinic {
   usages         ClinicUsage[]
   customRoles    CustomRole[]
   auditLogs      AuditLog[]
+  files          ClinicFile[]
 
   @@map("clinics")
 }
@@ -585,6 +588,31 @@ model AuditLog {
   clinic    Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
+}
+
+model ClinicFile {
+  id           Int          @id @default(autoincrement())
+  name         String
+  isFolder     Boolean      @default(false) @map("is_folder")
+  parentId     Int?         @map("parent_id")
+  fileType     String?      @map("file_type") // image, pdf, lab_report, prescription, patient_doc, insurance_doc, folder
+  mimeType     String?      @map("mime_type")
+  size         Int?         // size in bytes
+  content      String?      @db.Text // base64 representation of file content for inline storage
+  patientId    Int?         @map("patient_id")
+  clinicId     Int?         @map("clinic_id")
+  uploadedById Int?         @map("uploaded_by_id")
+  accessRoles  String?      @map("access_roles") // e.g. "admin,doctor,reception,patient"
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  parent       ClinicFile?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children     ClinicFile[] @relation("FolderHierarchy")
+  patient      Patient?     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinic       Clinic?      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@map("clinic_files")
 }
 
 

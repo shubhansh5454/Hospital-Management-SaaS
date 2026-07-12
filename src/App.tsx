@@ -18,6 +18,7 @@ import Reports from './components/Reports.tsx';
 import SaaSAdmin from './components/SaaSAdmin.tsx';
 import ClinicSettings from './components/ClinicSettings.tsx';
 import AccessManagement from './components/AccessManagement.tsx';
+import Documents from './components/Documents.tsx';
 import { HeartPulse } from 'lucide-react';
 
 
@@ -78,6 +79,7 @@ function AppContent() {
       {activeTab === 'inventory' && <Inventory />}
       {activeTab === 'notifications' && <Notifications />}
       {activeTab === 'reports' && <Reports />}
+      {activeTab === 'documents' && <Documents />}
     </Layout>
 
 
