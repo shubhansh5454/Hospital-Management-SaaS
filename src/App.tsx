@@ -23,6 +23,7 @@ import AIAssistant from './components/AIAssistant.tsx';
 import VideoConsultation from './components/VideoConsultation.tsx';
 import Insurance from './components/Insurance.tsx';
 import HRManagement from './components/HRManagement.tsx';
+import BackupManagement from './components/BackupManagement.tsx';
 import { HeartPulse } from 'lucide-react';
 
 
@@ -95,6 +96,7 @@ function AppContent() {
       {activeTab === 'video-consultation' && <VideoConsultation />}
       {activeTab === 'insurance' && <Insurance />}
       {activeTab === 'hr' && <HRManagement />}
+      {activeTab === 'backup' && <BackupManagement />}
     </Layout>
 
 

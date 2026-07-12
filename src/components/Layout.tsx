@@ -22,7 +22,8 @@ import {
   Folder,
   Video,
   Shield,
-  UserCheck
+  UserCheck,
+  Database
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -58,6 +59,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'video-consultation', name: 'Video Consultation', icon: Video, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'insurance', name: 'Insurance & Claims', icon: Shield, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'hr', name: 'HR Management', icon: UserCheck, roles: ['admin', 'doctor', 'receptionist', 'superadmin'] },
+    { id: 'backup', name: 'Backup & Restore', icon: Database, roles: ['admin', 'superadmin'] },
   ];
 
 
