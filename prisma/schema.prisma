@@ -468,6 +468,7 @@ model Clinic {
   customRoles    CustomRole[]
   auditLogs      AuditLog[]
   files          ClinicFile[]
+  settings       ClinicSetting?
 
   @@map("clinics")
 }
@@ -614,6 +615,48 @@ model ClinicFile {
 
   @@map("clinic_files")
 }
+
+model ClinicSetting {
+  id               Int      @id @default(autoincrement())
+  clinicId         Int      @unique @map("clinic_id")
+  hospitalName     String?  @map("hospital_name")
+  hospitalCode     String?  @map("hospital_code")
+  address          String?
+  contactNumber    String?  @map("contact_number")
+  website          String?
+  departments      String?  @db.Text
+  consultationFees Float    @default(50.0) @map("consultation_fees")
+  slotDuration     Int      @default(15) @map("slot_duration")
+  maxSlotsPerDay   Int      @default(30) @map("max_slots_per_day")
+  workingHours     String?  @db.Text @map("working_hours")
+  holidays         String?  @db.Text
+  taxRate          Float    @default(0.0) @map("tax_rate")
+  taxName          String?  @default("GST") @map("tax_name")
+  currency         String   @default("USD")
+  language         String   @default("en")
+  emailHost        String?  @map("email_host")
+  emailPort        Int?     @map("email_port")
+  emailUser        String?  @map("email_user")
+  emailPassword    String?  @map("email_password")
+  emailFrom        String?  @map("email_from")
+  emailEnabled     Boolean  @default(false) @map("email_enabled")
+  smsGateway       String?  @map("sms_gateway")
+  smsSid           String?  @map("sms_sid")
+  smsToken         String?  @map("sms_token")
+  smsFrom          String?  @map("sms_from")
+  smsEnabled       Boolean  @default(false) @map("sms_enabled")
+  waGateway        String?  @map("wa_gateway")
+  waToken          String?  @map("wa_token")
+  waNumber         String?  @map("wa_number")
+  waEnabled        Boolean  @default(false) @map("wa_enabled")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  clinic           Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@map("clinic_settings")
+}
+
 
 
 

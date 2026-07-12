@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext.tsx';
 import { 
@@ -20,7 +20,15 @@ import {
   Shield,
   Trash2,
   Lock,
-  DollarSign
+  DollarSign,
+  Globe,
+  Clock,
+  Calendar,
+  Percent,
+  Save,
+  Plus,
+  MessageSquare,
+  MessageCircle
 } from 'lucide-react';
 
 const SAAS_PLAN_TIERS = [
@@ -73,7 +81,229 @@ export default function ClinicSettings() {
   const [staffPassword, setStaffPassword] = useState('');
 
   // Active tab inside settings
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'plans' | 'billing' | 'staff'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'plans' | 'billing' | 'staff' | 'system'>('overview');
+
+  // System Settings Form States
+  const [hospitalName, setHospitalName] = useState('');
+  const [hospitalCode, setHospitalCode] = useState('');
+  const [address, setAddress] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [website, setWebsite] = useState('');
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [newDept, setNewDept] = useState('');
+  const [consultationFees, setConsultationFees] = useState(50.0);
+  const [slotDuration, setSlotDuration] = useState(15);
+  const [maxSlotsPerDay, setMaxSlotsPerDay] = useState(30);
+  const [workingHours, setWorkingHours] = useState<any>({});
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [newHolidayDate, setNewHolidayDate] = useState('');
+  const [newHolidayName, setNewHolidayName] = useState('');
+  const [taxRate, setTaxRate] = useState(0.0);
+  const [taxName, setTaxName] = useState('GST');
+  const [currency, setCurrency] = useState('USD');
+  const [language, setLanguage] = useState('en');
+
+  // Email Settings
+  const [emailHost, setEmailHost] = useState('');
+  const [emailPort, setEmailPort] = useState('');
+  const [emailUser, setEmailUser] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
+  const [emailFrom, setEmailFrom] = useState('');
+  const [emailEnabled, setEmailEnabled] = useState(false);
+
+  // SMS Settings
+  const [smsGateway, setSmsGateway] = useState('twilio');
+  const [smsSid, setSmsSid] = useState('');
+  const [smsToken, setSmsToken] = useState('');
+  const [smsFrom, setSmsFrom] = useState('');
+  const [smsEnabled, setSmsEnabled] = useState(false);
+
+  // WhatsApp Settings
+  const [waGateway, setWaGateway] = useState('whatsapp');
+  const [waToken, setWaToken] = useState('');
+  const [waNumber, setWaNumber] = useState('');
+  const [waEnabled, setWaEnabled] = useState(false);
+
+  // Inner tab inside System Settings
+  const [systemActiveTab, setSystemActiveTab] = useState<'info' | 'clinical' | 'timing' | 'billing' | 'comms'>('info');
+
+  // Query: Fetch system settings
+  const { data: systemSettings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load system settings');
+      return res.json();
+    },
+    enabled: !!token && !!profile?.clinicId
+  });
+
+  // Mutation: Save system settings
+  const saveSettingsMutation = useMutation({
+    mutationFn: async (updatedSettings: any) => {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updatedSettings)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to save system settings');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+      setSuccessMessage('System settings updated successfully!');
+      setTimeout(() => setSuccessMessage(null), 5000);
+    },
+    onError: (err: any) => {
+      setErrorMessage(err.message);
+      setTimeout(() => setErrorMessage(null), 5000);
+    }
+  });
+
+  // Load system settings into form state
+  useEffect(() => {
+    if (systemSettings) {
+      setHospitalName(systemSettings.hospitalName || '');
+      setHospitalCode(systemSettings.hospitalCode || '');
+      setAddress(systemSettings.address || '');
+      setContactNumber(systemSettings.contactNumber || '');
+      setWebsite(systemSettings.website || '');
+      
+      try {
+        setDepartments(JSON.parse(systemSettings.departments || '[]'));
+      } catch (e) {
+        setDepartments([]);
+      }
+      
+      setConsultationFees(systemSettings.consultationFees ?? 50.0);
+      setSlotDuration(systemSettings.slotDuration ?? 15);
+      setMaxSlotsPerDay(systemSettings.maxSlotsPerDay ?? 30);
+      
+      try {
+        setWorkingHours(JSON.parse(systemSettings.workingHours || '{}'));
+      } catch (e) {
+        setWorkingHours({});
+      }
+      
+      try {
+        setHolidays(JSON.parse(systemSettings.holidays || '[]'));
+      } catch (e) {
+        setHolidays([]);
+      }
+      
+      setTaxRate(systemSettings.taxRate ?? 0.0);
+      setTaxName(systemSettings.taxName || 'GST');
+      setCurrency(systemSettings.currency || 'USD');
+      setLanguage(systemSettings.language || 'en');
+      
+      setEmailHost(systemSettings.emailHost || '');
+      setEmailPort(systemSettings.emailPort?.toString() || '');
+      setEmailUser(systemSettings.emailUser || '');
+      setEmailPassword(systemSettings.emailPassword || '');
+      setEmailFrom(systemSettings.emailFrom || '');
+      setEmailEnabled(!!systemSettings.emailEnabled);
+      
+      setSmsGateway(systemSettings.smsGateway || 'twilio');
+      setSmsSid(systemSettings.smsSid || '');
+      setSmsToken(systemSettings.smsToken || '');
+      setSmsFrom(systemSettings.smsFrom || '');
+      setSmsEnabled(!!systemSettings.smsEnabled);
+      
+      setWaGateway(systemSettings.waGateway || 'whatsapp');
+      setWaToken(systemSettings.waToken || '');
+      setWaNumber(systemSettings.waNumber || '');
+      setWaEnabled(!!systemSettings.waEnabled);
+    }
+  }, [systemSettings]);
+
+  const handleSaveSystemSettings = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    saveSettingsMutation.mutate({
+      hospitalName,
+      hospitalCode,
+      address,
+      contactNumber,
+      website,
+      departments,
+      consultationFees,
+      slotDuration,
+      maxSlotsPerDay,
+      workingHours,
+      holidays,
+      taxRate,
+      taxName,
+      currency,
+      language,
+      emailHost,
+      emailPort,
+      emailUser,
+      emailPassword,
+      emailFrom,
+      emailEnabled,
+      smsGateway,
+      smsSid,
+      smsToken,
+      smsFrom,
+      smsEnabled,
+      waGateway,
+      waToken,
+      waNumber,
+      waEnabled
+    });
+  };
+
+  const handleAddDept = () => {
+    if (newDept.trim() && !departments.includes(newDept.trim())) {
+      setDepartments([...departments, newDept.trim()]);
+      setNewDept('');
+    }
+  };
+
+  const handleRemoveDept = (deptName: string) => {
+    setDepartments(departments.filter(d => d !== deptName));
+  };
+
+  const handleAddHoliday = () => {
+    if (newHolidayDate && newHolidayName.trim()) {
+      if (!holidays.some(h => h.date === newHolidayDate)) {
+        setHolidays([...holidays, { date: newHolidayDate, name: newHolidayName.trim() }]);
+        setNewHolidayDate('');
+        setNewHolidayName('');
+      }
+    }
+  };
+
+  const handleRemoveHoliday = (date: string) => {
+    setHolidays(holidays.filter(h => h.date !== date));
+  };
+
+  const handleToggleDay = (day: string) => {
+    setWorkingHours((prev: any) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        enabled: !prev[day]?.enabled
+      }
+    }));
+  };
+
+  const handleWorkingHourChange = (day: string, field: 'start' | 'end', value: string) => {
+    setWorkingHours((prev: any) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value
+      }
+    }));
+  };
 
   // Query: Fetch Clinic Profile info
   const { data: clinic, isLoading: clinicLoading } = useQuery({
@@ -396,6 +626,14 @@ export default function ClinicSettings() {
           }`}
         >
           Staff & Roles
+        </button>
+        <button
+          onClick={() => setActiveSubTab('system')}
+          className={`px-4 py-2 text-xs font-semibold border-b-2 transition cursor-pointer ${
+            activeSubTab === 'system' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          System Settings
         </button>
       </div>
 
