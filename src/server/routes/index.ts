@@ -15,6 +15,7 @@ import { reportsRouter } from './reports.ts';
 import { saasRouter } from './saas.ts';
 import { rolesRouter } from './roles.ts';
 import { filesRouter } from './files.ts';
+import { aiRouter } from './ai.ts';
 
 const apiRouter = Router();
 
@@ -34,6 +35,7 @@ apiRouter.use('/reports', reportsRouter);
 apiRouter.use('/saas', saasRouter);
 apiRouter.use('/roles', rolesRouter);
 apiRouter.use('/files', filesRouter);
+apiRouter.use('/ai', aiRouter);
 
 
 
