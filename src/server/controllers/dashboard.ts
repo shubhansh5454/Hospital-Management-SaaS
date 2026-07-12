@@ -29,15 +29,31 @@ export class DashboardController {
       // Start of today for timestamp-based creations (Patient.createdAt is a full timestamp)
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+      // Tenant isolation: filter by user's clinicId unless they are superadmin
+      const user = (req as any).user;
+      const userClinicId = user?.clinicId;
+      const userRole = user?.role;
+
+      let filterClinicId: number | undefined = undefined;
+
+      if (userRole !== 'superadmin') {
+        filterClinicId = userClinicId || undefined;
+      } else if (req.query.clinicId) {
+        filterClinicId = parseInt(req.query.clinicId as string, 10);
+      }
+
       // 1. Total Patients
-      const totalPatients = await prisma.patient.count();
+      const totalPatients = await prisma.patient.count({
+        where: filterClinicId ? { clinicId: filterClinicId } : {}
+      });
 
       // 2. Today's Registered Patients
       const todaysPatients = await prisma.patient.count({
         where: {
           createdAt: {
             gte: startOfToday,
-          }
+          },
+          ...(filterClinicId ? { clinicId: filterClinicId } : {})
         }
       });
 
@@ -48,6 +64,7 @@ export class DashboardController {
         },
         where: {
           paymentDate: todayStr,
+          ...(filterClinicId ? { invoice: { clinicId: filterClinicId } } : {})
         }
       });
 
@@ -57,6 +74,7 @@ export class DashboardController {
         },
         where: {
           saleDate: todayStr,
+          ...(filterClinicId ? { medicine: { clinicId: filterClinicId } } : {})
         }
       });
 
@@ -70,7 +88,8 @@ export class DashboardController {
         where: {
           paymentDate: {
             startsWith: currentMonthStr,
-          }
+          },
+          ...(filterClinicId ? { invoice: { clinicId: filterClinicId } } : {})
         }
       });
 
@@ -81,7 +100,8 @@ export class DashboardController {
         where: {
           saleDate: {
             startsWith: currentMonthStr,
-          }
+          },
+          ...(filterClinicId ? { medicine: { clinicId: filterClinicId } } : {})
         }
       });
 
@@ -91,43 +111,55 @@ export class DashboardController {
       const doctorsCount = await prisma.user.count({
         where: {
           role: 'doctor',
+          ...(filterClinicId ? { clinicId: filterClinicId } : {})
         }
       });
 
       // 6. Appointments Widgets
-      const appointmentsCount = await prisma.appointment.count();
+      const appointmentsCount = await prisma.appointment.count({
+        where: filterClinicId ? { clinicId: filterClinicId } : {}
+      });
       const todaysAppointmentsCount = await prisma.appointment.count({
         where: {
           date: todayStr,
+          ...(filterClinicId ? { clinicId: filterClinicId } : {})
         }
       });
 
       // 7. Lab Statistics
-      const labTotalCount = await prisma.labOrder.count();
+      const labTotalCount = await prisma.labOrder.count({
+        where: filterClinicId ? { clinicId: filterClinicId } : {}
+      });
       const labCompletedCount = await prisma.labOrder.count({
         where: {
           status: 'COMPLETED',
+          ...(filterClinicId ? { clinicId: filterClinicId } : {})
         }
       });
       const labPendingCount = await prisma.labOrder.count({
         where: {
           status: {
             in: ['BOOKED', 'SAMPLE_COLLECTED', 'IN_PROGRESS'],
-          }
+          },
+          ...(filterClinicId ? { clinicId: filterClinicId } : {})
         }
       });
 
       // 8. Pharmacy Sales
-      const pharmacySalesCount = await prisma.medicineSale.count();
+      const pharmacySalesCount = await prisma.medicineSale.count({
+        where: filterClinicId ? { medicine: { clinicId: filterClinicId } } : {}
+      });
       const pharmacySalesRevenueAggregate = await prisma.medicineSale.aggregate({
         _sum: {
           totalPrice: true,
-        }
+        },
+        where: filterClinicId ? { medicine: { clinicId: filterClinicId } } : {}
       });
       const pharmacySalesRevenue = pharmacySalesRevenueAggregate._sum.totalPrice || 0;
 
       // 9. Inventory Alerts (Products or Medicines with low stock)
       const products = await prisma.inventoryProduct.findMany({
+        where: filterClinicId ? { clinicId: filterClinicId } : {},
         select: {
           stock: true,
           minStockAlert: true,
@@ -136,6 +168,7 @@ export class DashboardController {
       const lowStockProductsCount = products.filter(p => p.stock <= p.minStockAlert).length;
 
       const medicines = await prisma.medicine.findMany({
+        where: filterClinicId ? { clinicId: filterClinicId } : {},
         select: {
           stock: true,
           minStockAlert: true,
@@ -168,7 +201,8 @@ export class DashboardController {
         where: {
           paymentDate: {
             gte: `${oldestMonthKey}-01`,
-          }
+          },
+          ...(filterClinicId ? { invoice: { clinicId: filterClinicId } } : {})
         },
         select: {
           amount: true,
@@ -180,7 +214,8 @@ export class DashboardController {
         where: {
           saleDate: {
             gte: `${oldestMonthKey}-01`,
-          }
+          },
+          ...(filterClinicId ? { medicine: { clinicId: filterClinicId } } : {})
         },
         select: {
           totalPrice: true,
@@ -192,7 +227,8 @@ export class DashboardController {
         where: {
           date: {
             gte: `${oldestMonthKey}-01`,
-          }
+          },
+          ...(filterClinicId ? { clinicId: filterClinicId } : {})
         },
         select: {
           status: true,
@@ -204,7 +240,8 @@ export class DashboardController {
         where: {
           createdAt: {
             gte: new Date(now.getFullYear(), now.getMonth() - 5, 1),
-          }
+          },
+          ...(filterClinicId ? { clinicId: filterClinicId } : {})
         },
         select: {
           createdAt: true,
@@ -263,7 +300,8 @@ export class DashboardController {
         where: {
           stock: {
             lte: 10, // approximate, or fetch and filter
-          }
+          },
+          ...(filterClinicId ? { clinicId: filterClinicId } : {})
         },
         include: {
           category: true,
@@ -287,7 +325,8 @@ export class DashboardController {
         where: {
           stock: {
             lte: 15,
-          }
+          },
+          ...(filterClinicId ? { clinicId: filterClinicId } : {})
         },
         take: 5,
       });
@@ -326,6 +365,7 @@ export class DashboardController {
           revenueTrend,
           patientGrowthTrend,
           appointmentTrend,
+          revenueTrendData: revenueTrend, // For compatibility
         },
         activeAlerts,
       });
