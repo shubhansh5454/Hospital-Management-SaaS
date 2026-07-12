@@ -21,6 +21,7 @@ import AccessManagement from './components/AccessManagement.tsx';
 import Documents from './components/Documents.tsx';
 import AIAssistant from './components/AIAssistant.tsx';
 import VideoConsultation from './components/VideoConsultation.tsx';
+import Insurance from './components/Insurance.tsx';
 import { HeartPulse } from 'lucide-react';
 
 
@@ -91,6 +92,7 @@ function AppContent() {
       {activeTab === 'documents' && <Documents />}
       {activeTab === 'ai-assistant' && <AIAssistant />}
       {activeTab === 'video-consultation' && <VideoConsultation />}
+      {activeTab === 'insurance' && <Insurance />}
     </Layout>
 
 
