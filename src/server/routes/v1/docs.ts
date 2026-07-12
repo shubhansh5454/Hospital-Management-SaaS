@@ -510,6 +510,242 @@ const openApiSpec = {
           }
         }
       }
+    },
+    '/payments/orders': {
+      post: {
+        summary: 'Create a new payment order for an invoice',
+        tags: ['Payments'],
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['invoiceId', 'amount', 'paymentMethod'],
+                properties: {
+                  invoiceId: { type: 'integer', example: 101 },
+                  amount: { type: 'number', example: 1250.50 },
+                  paymentMethod: { type: 'string', enum: ['UPI', 'CREDIT_CARD', 'DEBIT_CARD', 'NET_BANKING'], example: 'UPI' },
+                  notes: { type: 'string', example: 'OPD consultation payment' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '201': {
+            description: 'Order created successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'success' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        orderId: { type: 'string', example: 'ORD-1625900000000-A2B3C4' },
+                        invoiceId: { type: 'integer', example: 101 },
+                        amount: { type: 'number', example: 1250.50 },
+                        paymentMethod: { type: 'string', example: 'UPI' },
+                        status: { type: 'string', example: 'created' },
+                        createdAt: { type: 'integer', example: 1625900000000 },
+                        expiresAt: { type: 'integer', example: 1625901200000 },
+                        signature: { type: 'string', example: 'abc123xyz...' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    '/payments/verify': {
+      post: {
+        summary: 'Verify payment order and record transaction',
+        tags: ['Payments'],
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['orderId', 'referenceNo', 'paymentMethod', 'amount'],
+                properties: {
+                  orderId: { type: 'string', example: 'ORD-1625900000000-A2B3C4' },
+                  referenceNo: { type: 'string', example: 'TXN9876543210' },
+                  paymentMethod: { type: 'string', enum: ['UPI', 'CREDIT_CARD', 'DEBIT_CARD', 'NET_BANKING'], example: 'UPI' },
+                  amount: { type: 'number', example: 1250.50 },
+                  signature: { type: 'string', example: 'abc123xyz...' },
+                  gatewayStatus: { type: 'string', enum: ['SUCCESS', 'FAILURE'], default: 'SUCCESS', example: 'SUCCESS' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Payment successfully verified and committed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'success' },
+                    message: { type: 'string', example: 'Payment verified and recorded successfully' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        payment: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'integer' },
+                            invoiceId: { type: 'integer' },
+                            amount: { type: 'number' },
+                            paymentDate: { type: 'string' },
+                            paymentMethod: { type: 'string' },
+                            referenceNo: { type: 'string' }
+                          }
+                        },
+                        invoice: { $ref: '#/components/schemas/Patient' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    '/payments/refunds': {
+      post: {
+        summary: 'Process partial or full invoice refunds',
+        tags: ['Payments'],
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['invoiceId', 'amount', 'reason'],
+                properties: {
+                  invoiceId: { type: 'integer', example: 101 },
+                  paymentId: { type: 'integer', example: 42, description: 'Optional. Specific payment ID to refund.' },
+                  amount: { type: 'number', example: 500.00 },
+                  reason: { type: 'string', example: 'Double billing error' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Refund successfully processed',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'success' },
+                    message: { type: 'string', example: 'Refund successfully processed' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        refundPayment: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'integer' },
+                            invoiceId: { type: 'integer' },
+                            amount: { type: 'number', example: -500.00 },
+                            paymentDate: { type: 'string' },
+                            paymentMethod: { type: 'string', example: 'refund' },
+                            referenceNo: { type: 'string', example: 'REF-1625900000' }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    '/payments/history': {
+      get: {
+        summary: 'Get paginated payment transaction history',
+        tags: ['Payments'],
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: 'paymentMethod', in: 'query', required: false, schema: { type: 'string' }, description: 'Filter by method' },
+          { name: 'search', in: 'query', required: false, schema: { type: 'string' }, description: 'Search by reference number, invoice number, or patient name' },
+          { name: 'startDate', in: 'query', required: false, schema: { type: 'string', format: 'date' }, description: 'YYYY-MM-DD' },
+          { name: 'endDate', in: 'query', required: false, schema: { type: 'string', format: 'date' }, description: 'YYYY-MM-DD' },
+          { name: 'page', in: 'query', required: false, schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', required: false, schema: { type: 'integer', default: 10 } }
+        ],
+        responses: {
+          '200': {
+            description: 'Payment history fetched successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'success' },
+                    data: { type: 'array', items: { type: 'object' } },
+                    pagination: { $ref: '#/components/schemas/PaginationMetadata' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    '/payments/invoice/{id}': {
+      get: {
+        summary: 'Get comprehensive integrated invoice and payment details',
+        tags: ['Payments'],
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'integer' }, description: 'Invoice ID' }
+        ],
+        responses: {
+          '200': {
+            description: 'Integrated details loaded',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', example: 'success' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'integer' },
+                        invoiceNumber: { type: 'string' },
+                        totalAmount: { type: 'number' },
+                        amountPaid: { type: 'number' },
+                        remainingAmount: { type: 'number' },
+                        payments: { type: 'array', items: { type: 'object' } },
+                        integratedStatus: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 };
