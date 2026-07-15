@@ -19,6 +19,11 @@ export class AuthController {
         throw new AppError(parsed.error.issues[0].message, 400);
       }
 
+      // Security Defense: Prevent public registration of administrative roles in production environments
+      if (process.env.NODE_ENV === 'production' && parsed.data.role === 'admin') {
+        throw new AppError('Administrative registration is restricted. Please register using an authorized invitation channel.', 403);
+      }
+
       const result = await AuthService.register(parsed.data);
       res.status(211).json({
         status: 'success',
@@ -137,6 +142,11 @@ export class AuthController {
     try {
       if (!req.user) {
         throw new AppError('User not authenticated', 401);
+      }
+
+      // Security Defense: Disable self-role updating in production to prevent arbitrary privilege escalation
+      if (process.env.NODE_ENV === 'production') {
+        throw new AppError('Privilege escalation blocked: Sandbox self-role updating is strictly prohibited in production.', 403);
       }
 
       const roleSchema = z.object({
