@@ -6,8 +6,12 @@ import { prisma } from '../../db/prisma.ts';
 // Helper to log security violations directly into the Database Audit Log
 async function logSecurityIncident(req: Request, action: string, details: string) {
   try {
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown-ip').split(',')[0].trim();
-    const ua = req.headers['user-agent'] || '';
+    const rawIpHeader = req.headers?.['x-forwarded-for'];
+    const ipHeader = Array.isArray(rawIpHeader) ? rawIpHeader[0] : rawIpHeader;
+    const ip = (ipHeader || req.socket?.remoteAddress || 'unknown-ip').split(',')[0].trim();
+    
+    const rawUa = req.headers?.['user-agent'] || '';
+    const ua = Array.isArray(rawUa) ? rawUa[0] : rawUa;
     
     // Quick user-agent parser
     let browser = 'Unknown Browser';
@@ -162,13 +166,15 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
     return next();
   }
   
-  const origin = req.headers.origin || req.headers.referer;
-  const host = req.headers.host;
+  const rawOrigin = req.headers?.origin || req.headers?.referer;
+  const origin = Array.isArray(rawOrigin) ? rawOrigin[0] : rawOrigin;
+  const rawHost = req.headers?.host;
+  const host = Array.isArray(rawHost) ? rawHost[0] : rawHost;
   
   if (origin && host) {
     // If origin is defined, verify it matches our host
     try {
-      const originUrl = new URL(origin.startsWith('http') ? origin : `https://${origin}`);
+      const originUrl = new URL((origin as string).startsWith('http') ? (origin as string) : `https://${origin}`);
       const originHost = originUrl.host;
       
       // Allow localhost, the server host, and standard sandbox preview URLs (.run.app)
@@ -270,7 +276,7 @@ export const sqlInjectionDefense = (req: Request, res: Response, next: NextFunct
         if (pattern.test(val)) {
           // Double check if it's a false positive on safe strings
           // Allow simple SELECT statements for telemetry dashboard or system executions
-          if (req.path.startsWith('/api/monitoring') && val.toUpperCase() === 'SELECT 1') {
+          if (req.path?.startsWith('/api/monitoring') && val.toUpperCase() === 'SELECT 1') {
             continue;
           }
           return true; // Match found
@@ -289,11 +295,13 @@ export const sqlInjectionDefense = (req: Request, res: Response, next: NextFunct
   const hasAttack = checkValue(req.body) || checkValue(req.query) || checkValue(req.params);
   
   if (hasAttack) {
-    performanceMetrics.recordError(`SQL Injection Attempt Blocked from IP ${req.ip} on path ${req.originalUrl}`);
-    logger.error(`🚨 Security Alert: Blocked SQL Injection pattern on path ${req.originalUrl} from IP ${req.ip}`);
+    const safeIp = req.ip || 'unknown';
+    const safeUrl = req.originalUrl || 'unknown';
+    performanceMetrics.recordError(`SQL Injection Attempt Blocked from IP ${safeIp} on path ${safeUrl}`);
+    logger.error(`🚨 Security Alert: Blocked SQL Injection pattern on path ${safeUrl} from IP ${safeIp}`);
     
     // Persistent audit logging for monitoring
-    logSecurityIncident(req, 'SECURITY_SQL_INJECTION', `SQL Injection pattern matched on endpoint ${req.originalUrl}`);
+    logSecurityIncident(req, 'SECURITY_SQL_INJECTION', `SQL Injection pattern matched on endpoint ${safeUrl}`);
     
     return res.status(403).json({
       error: 'Security Exception',
