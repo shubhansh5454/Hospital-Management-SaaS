@@ -42,142 +42,6 @@ export class DashboardController {
         filterClinicId = parseInt(req.query.clinicId as string, 10);
       }
 
-      // 1. Total Patients
-      const totalPatients = await prisma.patient.count({
-        where: filterClinicId ? { clinicId: filterClinicId } : {}
-      });
-
-      // 2. Today's Registered Patients
-      const todaysPatients = await prisma.patient.count({
-        where: {
-          createdAt: {
-            gte: startOfToday,
-          },
-          ...(filterClinicId ? { clinicId: filterClinicId } : {})
-        }
-      });
-
-      // 3. Today's Revenue (Invoice Payments + Medicine Sales today)
-      const invoicePaymentsToday = await prisma.payment.aggregate({
-        _sum: {
-          amount: true,
-        },
-        where: {
-          paymentDate: todayStr,
-          ...(filterClinicId ? { invoice: { clinicId: filterClinicId } } : {})
-        }
-      });
-
-      const medicineSalesToday = await prisma.medicineSale.aggregate({
-        _sum: {
-          totalPrice: true,
-        },
-        where: {
-          saleDate: todayStr,
-          ...(filterClinicId ? { medicine: { clinicId: filterClinicId } } : {})
-        }
-      });
-
-      const todaysRevenue = (invoicePaymentsToday._sum.amount || 0) + (medicineSalesToday._sum.totalPrice || 0);
-
-      // 4. Monthly Revenue (Invoice Payments + Medicine Sales this month)
-      const invoicePaymentsThisMonth = await prisma.payment.aggregate({
-        _sum: {
-          amount: true,
-        },
-        where: {
-          paymentDate: {
-            startsWith: currentMonthStr,
-          },
-          ...(filterClinicId ? { invoice: { clinicId: filterClinicId } } : {})
-        }
-      });
-
-      const medicineSalesThisMonth = await prisma.medicineSale.aggregate({
-        _sum: {
-          totalPrice: true,
-        },
-        where: {
-          saleDate: {
-            startsWith: currentMonthStr,
-          },
-          ...(filterClinicId ? { medicine: { clinicId: filterClinicId } } : {})
-        }
-      });
-
-      const monthlyRevenue = (invoicePaymentsThisMonth._sum.amount || 0) + (medicineSalesThisMonth._sum.totalPrice || 0);
-
-      // 5. Total Doctors Count
-      const doctorsCount = await prisma.user.count({
-        where: {
-          role: 'doctor',
-          ...(filterClinicId ? { clinicId: filterClinicId } : {})
-        }
-      });
-
-      // 6. Appointments Widgets
-      const appointmentsCount = await prisma.appointment.count({
-        where: filterClinicId ? { clinicId: filterClinicId } : {}
-      });
-      const todaysAppointmentsCount = await prisma.appointment.count({
-        where: {
-          date: todayStr,
-          ...(filterClinicId ? { clinicId: filterClinicId } : {})
-        }
-      });
-
-      // 7. Lab Statistics
-      const labTotalCount = await prisma.labOrder.count({
-        where: filterClinicId ? { clinicId: filterClinicId } : {}
-      });
-      const labCompletedCount = await prisma.labOrder.count({
-        where: {
-          status: 'COMPLETED',
-          ...(filterClinicId ? { clinicId: filterClinicId } : {})
-        }
-      });
-      const labPendingCount = await prisma.labOrder.count({
-        where: {
-          status: {
-            in: ['BOOKED', 'SAMPLE_COLLECTED', 'IN_PROGRESS'],
-          },
-          ...(filterClinicId ? { clinicId: filterClinicId } : {})
-        }
-      });
-
-      // 8. Pharmacy Sales
-      const pharmacySalesCount = await prisma.medicineSale.count({
-        where: filterClinicId ? { medicine: { clinicId: filterClinicId } } : {}
-      });
-      const pharmacySalesRevenueAggregate = await prisma.medicineSale.aggregate({
-        _sum: {
-          totalPrice: true,
-        },
-        where: filterClinicId ? { medicine: { clinicId: filterClinicId } } : {}
-      });
-      const pharmacySalesRevenue = pharmacySalesRevenueAggregate._sum.totalPrice || 0;
-
-      // 9. Inventory Alerts (Products or Medicines with low stock)
-      const products = await prisma.inventoryProduct.findMany({
-        where: filterClinicId ? { clinicId: filterClinicId } : {},
-        select: {
-          stock: true,
-          minStockAlert: true,
-        }
-      });
-      const lowStockProductsCount = products.filter(p => p.stock <= p.minStockAlert).length;
-
-      const medicines = await prisma.medicine.findMany({
-        where: filterClinicId ? { clinicId: filterClinicId } : {},
-        select: {
-          stock: true,
-          minStockAlert: true,
-        }
-      });
-      const lowStockMedicinesCount = medicines.filter(m => m.stock <= m.minStockAlert).length;
-
-      const inventoryAlertsCount = lowStockProductsCount + lowStockMedicinesCount;
-
       // --- HISTORICAL TREND GENERATION (Last 6 Months) ---
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       interface MonthLabel {
@@ -196,57 +60,215 @@ export class DashboardController {
 
       // Fetch invoice payments & pharmacy sales for the 6-month window to build trends
       const oldestMonthKey = monthLabels[0].key; // e.g., "2026-02"
-      
-      const payments = await prisma.payment.findMany({
-        where: {
-          paymentDate: {
-            gte: `${oldestMonthKey}-01`,
-          },
-          ...(filterClinicId ? { invoice: { clinicId: filterClinicId } } : {})
-        },
-        select: {
-          amount: true,
-          paymentDate: true,
-        }
-      });
 
-      const medSales = await prisma.medicineSale.findMany({
-        where: {
-          saleDate: {
-            gte: `${oldestMonthKey}-01`,
+      // Execute all 22 database queries concurrently to eliminate sequential waiting bottlenecks
+      const [
+        totalPatients,
+        todaysPatients,
+        invoicePaymentsToday,
+        medicineSalesToday,
+        invoicePaymentsThisMonth,
+        medicineSalesThisMonth,
+        doctorsCount,
+        appointmentsCount,
+        todaysAppointmentsCount,
+        labTotalCount,
+        labCompletedCount,
+        labPendingCount,
+        pharmacySalesCount,
+        pharmacySalesRevenueAggregate,
+        products,
+        medicines,
+        payments,
+        medSales,
+        appointments,
+        patients,
+        lowStockProducts,
+        lowStockMedicines,
+      ] = await Promise.all([
+        prisma.patient.count({
+          where: filterClinicId ? { clinicId: filterClinicId } : {}
+        }),
+        prisma.patient.count({
+          where: {
+            createdAt: {
+              gte: startOfToday,
+            },
+            ...(filterClinicId ? { clinicId: filterClinicId } : {})
+          }
+        }),
+        prisma.payment.aggregate({
+          _sum: {
+            amount: true,
           },
-          ...(filterClinicId ? { medicine: { clinicId: filterClinicId } } : {})
-        },
-        select: {
-          totalPrice: true,
-          saleDate: true,
-        }
-      });
+          where: {
+            paymentDate: todayStr,
+            ...(filterClinicId ? { invoice: { clinicId: filterClinicId } } : {})
+          }
+        }),
+        prisma.medicineSale.aggregate({
+          _sum: {
+            totalPrice: true,
+          },
+          where: {
+            saleDate: todayStr,
+            ...(filterClinicId ? { medicine: { clinicId: filterClinicId } } : {})
+          }
+        }),
+        prisma.payment.aggregate({
+          _sum: {
+            amount: true,
+          },
+          where: {
+            paymentDate: {
+              startsWith: currentMonthStr,
+            },
+            ...(filterClinicId ? { invoice: { clinicId: filterClinicId } } : {})
+          }
+        }),
+        prisma.medicineSale.aggregate({
+          _sum: {
+            totalPrice: true,
+          },
+          where: {
+            saleDate: {
+              startsWith: currentMonthStr,
+            },
+            ...(filterClinicId ? { medicine: { clinicId: filterClinicId } } : {})
+          }
+        }),
+        prisma.user.count({
+          where: {
+            role: 'doctor',
+            ...(filterClinicId ? { clinicId: filterClinicId } : {})
+          }
+        }),
+        prisma.appointment.count({
+          where: filterClinicId ? { clinicId: filterClinicId } : {}
+        }),
+        prisma.appointment.count({
+          where: {
+            date: todayStr,
+            ...(filterClinicId ? { clinicId: filterClinicId } : {})
+          }
+        }),
+        prisma.labOrder.count({
+          where: filterClinicId ? { clinicId: filterClinicId } : {}
+        }),
+        prisma.labOrder.count({
+          where: {
+            status: 'COMPLETED',
+            ...(filterClinicId ? { clinicId: filterClinicId } : {})
+          }
+        }),
+        prisma.labOrder.count({
+          where: {
+            status: {
+              in: ['BOOKED', 'SAMPLE_COLLECTED', 'IN_PROGRESS'],
+            },
+            ...(filterClinicId ? { clinicId: filterClinicId } : {})
+          }
+        }),
+        prisma.medicineSale.count({
+          where: filterClinicId ? { medicine: { clinicId: filterClinicId } } : {}
+        }),
+        prisma.medicineSale.aggregate({
+          _sum: {
+            totalPrice: true,
+          },
+          where: filterClinicId ? { medicine: { clinicId: filterClinicId } } : {}
+        }),
+        prisma.inventoryProduct.findMany({
+          where: filterClinicId ? { clinicId: filterClinicId } : {},
+          select: {
+            stock: true,
+            minStockAlert: true,
+          }
+        }),
+        prisma.medicine.findMany({
+          where: filterClinicId ? { clinicId: filterClinicId } : {},
+          select: {
+            stock: true,
+            minStockAlert: true,
+          }
+        }),
+        prisma.payment.findMany({
+          where: {
+            paymentDate: {
+              gte: `${oldestMonthKey}-01`,
+            },
+            ...(filterClinicId ? { invoice: { clinicId: filterClinicId } } : {})
+          },
+          select: {
+            amount: true,
+            paymentDate: true,
+          }
+        }),
+        prisma.medicineSale.findMany({
+          where: {
+            saleDate: {
+              gte: `${oldestMonthKey}-01`,
+            },
+            ...(filterClinicId ? { medicine: { clinicId: filterClinicId } } : {})
+          },
+          select: {
+            totalPrice: true,
+            saleDate: true,
+          }
+        }),
+        prisma.appointment.findMany({
+          where: {
+            date: {
+              gte: `${oldestMonthKey}-01`,
+            },
+            ...(filterClinicId ? { clinicId: filterClinicId } : {})
+          },
+          select: {
+            status: true,
+            date: true,
+          }
+        }),
+        prisma.patient.findMany({
+          where: {
+            createdAt: {
+              gte: new Date(now.getFullYear(), now.getMonth() - 5, 1),
+            },
+            ...(filterClinicId ? { clinicId: filterClinicId } : {})
+          },
+          select: {
+            createdAt: true,
+          }
+        }),
+        prisma.inventoryProduct.findMany({
+          where: {
+            stock: {
+              lte: 10,
+            },
+            ...(filterClinicId ? { clinicId: filterClinicId } : {})
+          },
+          include: {
+            category: true,
+          },
+          take: 5,
+        }),
+        prisma.medicine.findMany({
+          where: {
+            stock: {
+              lte: 15,
+            },
+            ...(filterClinicId ? { clinicId: filterClinicId } : {})
+          },
+          take: 5,
+        }),
+      ]);
 
-      const appointments = await prisma.appointment.findMany({
-        where: {
-          date: {
-            gte: `${oldestMonthKey}-01`,
-          },
-          ...(filterClinicId ? { clinicId: filterClinicId } : {})
-        },
-        select: {
-          status: true,
-          date: true,
-        }
-      });
+      const todaysRevenue = (invoicePaymentsToday._sum.amount || 0) + (medicineSalesToday._sum.totalPrice || 0);
+      const monthlyRevenue = (invoicePaymentsThisMonth._sum.amount || 0) + (medicineSalesThisMonth._sum.totalPrice || 0);
+      const pharmacySalesRevenue = pharmacySalesRevenueAggregate._sum.totalPrice || 0;
 
-      const patients = await prisma.patient.findMany({
-        where: {
-          createdAt: {
-            gte: new Date(now.getFullYear(), now.getMonth() - 5, 1),
-          },
-          ...(filterClinicId ? { clinicId: filterClinicId } : {})
-        },
-        select: {
-          createdAt: true,
-        }
-      });
+      const lowStockProductsCount = products.filter(p => p.stock <= p.minStockAlert).length;
+      const lowStockMedicinesCount = medicines.filter(m => m.stock <= m.minStockAlert).length;
+      const inventoryAlertsCount = lowStockProductsCount + lowStockMedicinesCount;
 
       // Build Revenue Trend
       const revenueTrend = monthLabels.map(m => {
@@ -295,20 +317,6 @@ export class DashboardController {
         };
       });
 
-      // Fetch inventory details for low stock alert alerts
-      const lowStockProducts = await prisma.inventoryProduct.findMany({
-        where: {
-          stock: {
-            lte: 10, // approximate, or fetch and filter
-          },
-          ...(filterClinicId ? { clinicId: filterClinicId } : {})
-        },
-        include: {
-          category: true,
-        },
-        take: 5,
-      });
-
       const activeLowStockProducts = lowStockProducts
         .filter(p => p.stock <= p.minStockAlert)
         .map(p => ({
@@ -320,16 +328,6 @@ export class DashboardController {
           type: 'inventory',
           category: p.category.name,
         }));
-
-      const lowStockMedicines = await prisma.medicine.findMany({
-        where: {
-          stock: {
-            lte: 15,
-          },
-          ...(filterClinicId ? { clinicId: filterClinicId } : {})
-        },
-        take: 5,
-      });
 
       const activeLowStockMedicines = lowStockMedicines
         .filter(m => m.stock <= m.minStockAlert)
