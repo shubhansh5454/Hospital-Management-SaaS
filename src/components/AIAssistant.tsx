@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './AuthContext.tsx';
 import { motion, AnimatePresence } from 'motion/react';
+import AICdsModule from './AICdsModule.tsx';
 import {
   Sparkles,
   Brain,
@@ -42,8 +43,8 @@ export default function AIAssistant() {
 
   // Core Active Tab State
   const [activeFeature, setActiveFeature] = useState<
-    'appointment' | 'prescription' | 'medical-summary' | 'patient-history' | 'follow-up' | 'clinical-notes'
-  >('appointment');
+    'decision-support' | 'appointment' | 'prescription' | 'medical-summary' | 'patient-history' | 'follow-up' | 'clinical-notes'
+  >('decision-support');
 
   // AI Service Provider Configuration Panel States
   const [showConfig, setShowConfig] = useState(false);
@@ -219,6 +220,35 @@ plan: schedule MRI lower spine. start Gabapentin 300mg TID. refer to physical th
     }
   };
 
+  if (activeFeature === 'decision-support') {
+    return (
+      <div className="flex-1 p-8 overflow-y-auto space-y-6 bg-slate-50/50">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-teal-50 text-teal-600 rounded-lg">
+                <Brain className="w-5 h-5 animate-pulse" />
+              </div>
+              <h1 className="text-2xl font-display font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                Clinical Decision Support <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-mono uppercase font-bold">Active Safety Guard</span>
+              </h1>
+            </div>
+            <p className="text-sm text-slate-400">
+              Interactive clinical decision engine: allergy warning intercept, drug-drug interactions, duplicate medicines, and structured differential diagnosis with evidence-based guidelines.
+            </p>
+          </div>
+          <button
+            onClick={() => setActiveFeature('appointment')}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 transition-all cursor-pointer"
+          >
+            Back to Playground Workflows
+          </button>
+        </div>
+        <AICdsModule />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 p-8 overflow-y-auto space-y-6 bg-slate-50/50">
       
@@ -325,6 +355,7 @@ plan: schedule MRI lower spine. start Gabapentin 300mg TID. refer to physical th
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block px-2 pb-1">AI Clinical Workflows</span>
             {[
+              { id: 'decision-support', label: 'Clinical Decision Support', desc: 'Safety guard & differential advisor', icon: Brain, color: 'text-teal-600 bg-teal-50', clinicalOnly: true },
               { id: 'appointment', label: 'AI Appointment Assistant', desc: 'Symptom triage & specialist matching', icon: Calendar, color: 'text-blue-500 bg-blue-50' },
               { id: 'clinical-notes', label: 'Clinical SOAP Note Scribe', desc: 'Expand rough notes into complete SOAP', icon: Stethoscope, color: 'text-indigo-500 bg-indigo-50' },
               { id: 'prescription', label: 'Prescription Advisor', desc: 'Medication suggestions & interactions', icon: Pill, color: 'text-rose-500 bg-rose-50', clinicalOnly: true },

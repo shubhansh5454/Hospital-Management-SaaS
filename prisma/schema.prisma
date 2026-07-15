@@ -31,6 +31,7 @@ model User {
   uploadedFiles   ClinicFile[]
   tenantId      Int?           @map("tenant_id")
   tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cdsSuggestions AICdsSuggestion[] @relation("DoctorCds")
 
   @@index([clinicId])
   @@index([role])
@@ -59,6 +60,7 @@ model Patient {
   notifications  Notification[]
   clinic         Clinic?       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   files          ClinicFile[]
+  cdsSuggestions AICdsSuggestion[]
 
   @@index([clinicId])
   @@index([email])
@@ -714,6 +716,85 @@ model FeatureFlag {
 
   @@map("feature_flags")
 }
+
+model AICdsProviderConfig {
+  id              Int      @id @default(autoincrement())
+  name            String   @unique // e.g. "Gemini", "OpenAI"
+  modelName       String   @map("model_name") // e.g. "gemini-3.5-flash"
+  apiKeyEnvVar    String   @default("GEMINI_API_KEY") @map("api_key_env_var")
+  temperature     Float    @default(0.1)
+  maxTokens       Int      @default(4000) @map("max_tokens")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("ai_cds_provider_configs")
+}
+
+model AICdsPromptTemplate {
+  id              Int      @id @default(autoincrement())
+  key             String   // e.g. "symptom_analysis", "differential_diagnosis", "drug_interactions"
+  promptText      String   @db.Text @map("prompt_text")
+  version         Int      @default(1)
+  description     String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@unique([key, version])
+  @@map("ai_cds_prompt_templates")
+}
+
+model AICdsAuditLog {
+  id              Int      @id @default(autoincrement())
+  provider        String
+  model           String
+  promptKey       String   @map("prompt_key")
+  promptVersion   Int      @map("prompt_version")
+  inputPayload    String   @db.Text @map("input_payload") // JSON representation of clinical context
+  outputResponse  String   @db.Text @map("output_response") // JSON representation of model response
+  status          String   // "SUCCESS" | "FAILURE"
+  latencyMs       Int      @map("latency_ms")
+  tokensUsed      Int?     @map("tokens_used")
+  error           String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([promptKey])
+  @@index([createdAt])
+  @@map("ai_cds_audit_logs")
+}
+
+model AICdsSuggestion {
+  id                     Int       @id @default(autoincrement())
+  patientId              Int       @map("patient_id")
+  doctorId               Int       @map("doctor_id")
+  appointmentId          Int?      @map("appointment_id")
+  emrRecordId            Int?      @map("emr_record_id")
+  symptomsText           String    @db.Text @map("symptoms_text")
+  
+  symptomAnalysis        String    @db.Text @map("symptom_analysis") // Stringified JSON
+  differentialDiagnosis  String    @db.Text @map("differential_diagnosis") // Stringified JSON
+  drugInteractions       String    @db.Text @map("drug_interactions") // Stringified JSON
+  allergyWarnings        String    @db.Text @map("allergy_warnings") // Stringified JSON
+  duplicateMedicines     String    @db.Text @map("duplicate_medicines") // Stringified JSON
+  dosageSuggestions      String    @db.Text @map("dosage_suggestions") // Stringified JSON
+  clinicalGuidelines     String    @db.Text @map("clinical_guidelines") // Stringified JSON
+  riskScore              String    @db.Text @map("risk_score") // Stringified JSON
+  explainability         String    @db.Text @map("explainability") // Stringified JSON
+  
+  isApproved             Boolean   @default(false) @map("is_approved")
+  approvedBy             Int?      @map("approved_by")
+  approvedAt             DateTime? @map("approved_at") @db.Timestamp(6)
+  savedPrescription      String?   @db.Text @map("saved_prescription") // Stringified JSON
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  patient                Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor                 User      @relation("DoctorCds", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@map("ai_cds_suggestions")
+}
+
 
 
 
