@@ -1,9 +1,12 @@
 import { AppointmentRepository, AppointmentFilterInput } from '../repositories/appointment.ts';
-import { prisma } from '../../db/prisma.ts';
+import { UserRepository } from '../repositories/user.ts';
+import { PatientRepository } from '../repositories/patient.ts';
 import { CreateAppointmentInput, UpdateAppointmentInput, FilterAppointmentQuery } from '../validation/appointment.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { NotificationService } from './notification.ts';
 import { logger } from '../utils/logger.ts';
+import { doctorsCache } from '../utils/cache.ts';
+import { prisma } from '../../db/prisma.ts';
 
 export class AppointmentService {
   /**
@@ -13,17 +16,13 @@ export class AppointmentService {
     const { doctorId, patientId, date, time, clinicId } = input;
 
     // 1. Verify doctor exists and has the 'doctor' role
-    const doctor = await prisma.user.findFirst({
-      where: { id: doctorId, role: 'doctor' },
-    });
-    if (!doctor) {
+    const doctor = await UserRepository.findById(doctorId);
+    if (!doctor || doctor.role !== 'doctor') {
       throw new AppError('The assigned doctor was not found or is invalid', 404);
     }
 
     // 2. Verify patient exists
-    const patient = await prisma.patient.findUnique({
-      where: { id: patientId },
-    });
+    const patient = await PatientRepository.findById(patientId);
     if (!patient) {
       throw new AppError('The selected patient profile was not found', 404);
     }
@@ -126,10 +125,8 @@ export class AppointmentService {
     ) {
       // 1. Verify doctor role if doctor updated
       if (input.doctorId !== undefined) {
-        const doctor = await prisma.user.findFirst({
-          where: { id: docId, role: 'doctor' },
-        });
-        if (!doctor) {
+        const doctor = await UserRepository.findById(docId);
+        if (!doctor || doctor.role !== 'doctor') {
           throw new AppError('The assigned doctor was not found or is invalid', 404);
         }
       }
@@ -143,9 +140,7 @@ export class AppointmentService {
 
     // 3. Verify patient if updating patient
     if (input.patientId !== undefined && input.patientId !== appointment.patientId) {
-      const patient = await prisma.patient.findUnique({
-        where: { id: input.patientId },
-      });
+      const patient = await PatientRepository.findById(input.patientId);
       if (!patient) {
         throw new AppError('The selected patient profile was not found', 404);
       }
@@ -166,9 +161,9 @@ export class AppointmentService {
 
     // Trigger update or cancellation notifications asynchronously
     try {
-      const patient = await prisma.patient.findUnique({ where: { id: updated.patientId } });
-      const doctor = await prisma.user.findFirst({ where: { id: updated.doctorId, role: 'doctor' } });
-      if (patient && doctor) {
+      const patient = await PatientRepository.findById(updated.patientId);
+      const doctor = await UserRepository.findById(updated.doctorId);
+      if (patient && doctor && doctor.role === 'doctor') {
         let title = 'Appointment Updated';
         let message = `Dear ${patient.name}, your appointment with Dr. ${doctor.name} has been updated to ${updated.date} at ${updated.time}.`;
 
@@ -211,5 +206,26 @@ export class AppointmentService {
     }
 
     return { success: true, message: 'Appointment successfully deleted' };
+  }
+
+  /**
+   * Get list of physicians for appointment scheduling dropdowns.
+   * Implements high performance TTL caching to prevent database overload.
+   */
+  public static async getDoctorsList() {
+    const cacheKey = 'appointments_physicians_list';
+    const cached = doctorsCache.get<any[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const doctors = await prisma.user.findMany({
+      where: { role: 'doctor' },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    });
+
+    doctorsCache.set(cacheKey, doctors, 60); // Cache for 60 seconds
+    return doctors;
   }
 }

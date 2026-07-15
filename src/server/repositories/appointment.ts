@@ -13,6 +13,72 @@ export interface AppointmentFilterInput {
 
 export class AppointmentRepository {
   /**
+   * Consistently build query conditions across find and count operations (DRY)
+   */
+  private static buildWhereClause(filters: AppointmentFilterInput) {
+    const { doctorId, patientId, date, status, search, clinicId } = filters;
+    const whereClause: any = {};
+
+    if (clinicId !== undefined) {
+      whereClause.clinicId = clinicId;
+    }
+
+    if (doctorId !== undefined) {
+      whereClause.doctorId = doctorId;
+    }
+
+    if (patientId !== undefined) {
+      whereClause.patientId = patientId;
+    }
+
+    if (date) {
+      whereClause.date = date;
+    }
+
+    if (status) {
+      whereClause.status = status;
+    }
+
+    if (search) {
+      const trimmedSearch = search.trim();
+      if (trimmedSearch) {
+        whereClause.OR = [
+          {
+            reason: {
+              contains: trimmedSearch,
+              mode: 'insensitive',
+            },
+          },
+          {
+            notes: {
+              contains: trimmedSearch,
+              mode: 'insensitive',
+            },
+          },
+          {
+            patient: {
+              name: {
+                contains: trimmedSearch,
+                mode: 'insensitive',
+              },
+            },
+          },
+          {
+            doctor: {
+              name: {
+                contains: trimmedSearch,
+                mode: 'insensitive',
+              },
+            },
+          },
+        ];
+      }
+    }
+
+    return whereClause;
+  }
+
+  /**
    * Create a new appointment
    */
   public static async create(data: {
@@ -60,63 +126,8 @@ export class AppointmentRepository {
    * Find all appointments based on filters, pagination, and search queries
    */
   public static async findAll(filters: AppointmentFilterInput) {
-    const { doctorId, patientId, date, status, search, skip = 0, take = 50, clinicId } = filters;
-
-    // Build query conditions
-    const whereClause: any = {};
-
-    if (clinicId !== undefined) {
-      whereClause.clinicId = clinicId;
-    }
-
-    if (doctorId !== undefined) {
-      whereClause.doctorId = doctorId;
-    }
-
-    if (patientId !== undefined) {
-      whereClause.patientId = patientId;
-    }
-
-    if (date) {
-      whereClause.date = date;
-    }
-
-    if (status) {
-      whereClause.status = status;
-    }
-
-    if (search) {
-      whereClause.OR = [
-        {
-          reason: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          notes: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          patient: {
-            name: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
-        },
-        {
-          doctor: {
-            name: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
-        },
-      ];
-    }
+    const { skip = 0, take = 50 } = filters;
+    const whereClause = this.buildWhereClause(filters);
 
     return prisma.appointment.findMany({
       where: whereClause,
@@ -149,62 +160,7 @@ export class AppointmentRepository {
    * Count total appointments matching the filter conditions
    */
   public static async countAll(filters: Omit<AppointmentFilterInput, 'skip' | 'take'>) {
-    const { doctorId, patientId, date, status, search, clinicId } = filters;
-    const whereClause: any = {};
-
-    if (clinicId !== undefined) {
-      whereClause.clinicId = clinicId;
-    }
-
-    if (doctorId !== undefined) {
-      whereClause.doctorId = doctorId;
-    }
-
-    if (patientId !== undefined) {
-      whereClause.patientId = patientId;
-    }
-
-    if (date) {
-      whereClause.date = date;
-    }
-
-    if (status) {
-      whereClause.status = status;
-    }
-
-    if (search) {
-      whereClause.OR = [
-        {
-          reason: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          notes: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          patient: {
-            name: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
-        },
-        {
-          doctor: {
-            name: {
-              contains: search,
-              mode: 'insensitive',
-            },
-          },
-        },
-      ];
-    }
-
+    const whereClause = this.buildWhereClause(filters);
     return prisma.appointment.count({
       where: whereClause,
     });
@@ -275,7 +231,8 @@ export class AppointmentRepository {
   }
 
   /**
-   * Check for any active (not cancelled) appointments overlapping for a doctor
+   * Check for any active (not cancelled) appointments overlapping for a doctor.
+   * Optimizes query performance by returning only the ID projection instead of fetching the entire record.
    */
   public static async checkOverlap(
     doctorId: number,
@@ -292,6 +249,9 @@ export class AppointmentRepository {
           not: 'cancelled',
         },
         ...(excludeId !== undefined ? { id: { not: excludeId } } : {}),
+      },
+      select: {
+        id: true,
       },
     });
   }

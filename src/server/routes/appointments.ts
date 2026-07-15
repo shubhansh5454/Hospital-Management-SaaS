@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.ts';
 import { AppointmentController } from '../controllers/appointment.ts';
-import { prisma } from '../../db/prisma.ts';
 
 const router = Router();
 
@@ -10,20 +9,10 @@ router.use(requireAuth);
 
 /**
  * @route GET /api/appointments/doctors
- * @desc Retrieve list of physicians for appointment allocation dropdowns
+ * @desc Retrieve list of physicians for appointment allocation dropdowns (Cached)
  * @access Private (authenticated users)
  */
-router.get('/doctors', async (req, res, next) => {
-  try {
-    const allDoctors = await prisma.user.findMany({
-      where: { role: 'doctor' },
-      select: { id: true, name: true, email: true },
-    });
-    res.json(allDoctors);
-  } catch (error) {
-    next(error);
-  }
-});
+router.get('/doctors', AppointmentController.getDoctors);
 
 /**
  * @route GET /api/appointments

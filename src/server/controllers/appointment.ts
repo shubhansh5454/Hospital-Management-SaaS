@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppointmentService } from '../services/appointment.ts';
+import { PatientRepository } from '../repositories/patient.ts';
 import { createAppointmentSchema, updateAppointmentSchema, filterAppointmentQuerySchema } from '../validation/appointment.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { AuthRequest } from '../../middleware/auth.ts';
@@ -58,17 +59,21 @@ export class AppointmentController {
         // Doctors only see their own appointments
         rawQuery.doctorId = String(userId);
       } else if (role === 'patient') {
-        // Patients see their own appointments. Let's find patient profile matched with email first.
-        const matchedPatients = await import('../../db/prisma.ts').then(m => 
-          m.prisma.patient.findMany({ where: { email: userEmail } })
-        );
-        if (matchedPatients.length === 0) {
+        if (!userEmail) {
           return res.status(200).json({
             appointments: [],
             pagination: { total: 0, page: 1, limit: 10, totalPages: 0 }
           });
         }
-        rawQuery.patientId = String(matchedPatients[0].id);
+        // Patients see their own appointments. Find patient profile matched with email first.
+        const matchedPatient = await PatientRepository.findByEmail(userEmail);
+        if (!matchedPatient) {
+          return res.status(200).json({
+            appointments: [],
+            pagination: { total: 0, page: 1, limit: 10, totalPages: 0 }
+          });
+        }
+        rawQuery.patientId = String(matchedPatient.id);
       }
 
       const parsed = filterAppointmentQuerySchema.safeParse(rawQuery);
@@ -163,6 +168,18 @@ export class AppointmentController {
       }
 
       res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get list of doctors for dropdown selectors (cached)
+   */
+  public static async getDoctors(req: Request, res: Response, next: NextFunction) {
+    try {
+      const doctors = await AppointmentService.getDoctorsList();
+      res.status(200).json(doctors);
     } catch (error) {
       next(error);
     }
