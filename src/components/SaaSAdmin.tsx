@@ -21,7 +21,16 @@ import {
   Mail, 
   Globe, 
   DollarSign,
-  Briefcase
+  Briefcase,
+  Server,
+  Cpu,
+  Database,
+  RefreshCw,
+  Clock,
+  Terminal,
+  Heart,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function SaaSAdmin() {
@@ -33,7 +42,51 @@ export default function SaaSAdmin() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Sub-tabs navigation state
-  const [activeSubTab, setActiveSubTab] = useState<'clinics' | 'features'>('clinics');
+  const [activeSubTab, setActiveSubTab] = useState<'clinics' | 'features' | 'monitoring'>('clinics');
+
+  const [expandedErrorIdx, setExpandedErrorIdx] = useState<number | null>(null);
+
+  // Query: Get Live Telemetry Metrics
+  const { data: metrics, isLoading: metricsLoading, refetch: refetchMetrics, isFetching: isFetchingMetrics } = useQuery({
+    queryKey: ['saas-monitoring-metrics'],
+    queryFn: async () => {
+      const res = await fetch('/api/monitoring/metrics', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load telemetry metrics');
+      return res.json();
+    },
+    enabled: !!token && activeSubTab === 'monitoring',
+    refetchInterval: 10000,
+  });
+
+  // Query: Get Database Health Stats
+  const { data: dbHealth, isLoading: dbHealthLoading, refetch: refetchDbHealth, isFetching: isFetchingDbHealth } = useQuery({
+    queryKey: ['saas-monitoring-db'],
+    queryFn: async () => {
+      const res = await fetch('/api/monitoring/db', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load database health');
+      return res.json();
+    },
+    enabled: !!token && activeSubTab === 'monitoring',
+    refetchInterval: 15000,
+  });
+
+  // Query: Get Queue Health Stats
+  const { data: queueHealth, isLoading: queueHealthLoading, refetch: refetchQueueHealth, isFetching: isFetchingQueueHealth } = useQuery({
+    queryKey: ['saas-monitoring-queues'],
+    queryFn: async () => {
+      const res = await fetch('/api/monitoring/queues', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load queue telemetry');
+      return res.json();
+    },
+    enabled: !!token && activeSubTab === 'monitoring',
+    refetchInterval: 15000,
+  });
 
   // New clinic form state
   const [clinicName, setClinicName] = useState('');
@@ -271,6 +324,16 @@ export default function SaaSAdmin() {
           }`}
         >
           SaaS Feature Flags & Control Panel
+        </button>
+        <button
+          onClick={() => setActiveSubTab('monitoring')}
+          className={`px-6 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+            activeSubTab === 'monitoring'
+              ? 'border-teal-500 text-teal-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          System Telemetry & Health Monitoring
         </button>
       </div>
 
@@ -840,6 +903,471 @@ export default function SaaSAdmin() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {activeSubTab === 'monitoring' && (
+        <div className="space-y-6 animate-fadeIn" id="saas_monitoring_panel">
+          {/* Header Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 border border-slate-100 rounded-3xl shadow-sm">
+            <div className="space-y-1">
+              <h2 className="text-lg font-display font-bold text-slate-800 flex items-center gap-2">
+                <Server className="w-5 h-5 text-teal-600" />
+                <span>Production Health & Telemetry</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Live monitoring dashboard. Refreshes telemetry every 10 seconds.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  refetchMetrics();
+                  refetchDbHealth();
+                  refetchQueueHealth();
+                }}
+                disabled={isFetchingMetrics || isFetchingDbHealth || isFetchingQueueHealth}
+                className="h-9 px-4 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isFetchingMetrics || isFetchingDbHealth || isFetchingQueueHealth ? 'animate-spin' : ''}`} />
+                <span>Force Refresh</span>
+              </button>
+              <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-100 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Telemetry Active</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Heartbeat Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex items-center justify-between">
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Liveness Check</span>
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                  <Heart className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>UP & RUNNING</span>
+                </span>
+                <span className="text-[10px] text-slate-400 block">HTTP heartbeat active</span>
+              </div>
+              <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center">
+                <Server className="w-5 h-5 text-slate-500" />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex items-center justify-between">
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Readiness Check</span>
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>TRAFFIC READY</span>
+                </span>
+                <span className="text-[10px] text-slate-400 block">Gateway connections ready</span>
+              </div>
+              <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center">
+                <Globe className="w-5 h-5 text-slate-500" />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex items-center justify-between">
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Database Health</span>
+                <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${
+                  dbHealth?.database?.status === 'CONNECTED' 
+                    ? 'text-emerald-700 bg-emerald-50 border-emerald-100' 
+                    : 'text-rose-700 bg-rose-50 border-rose-100'
+                }`}>
+                  <Database className={`w-3.5 h-3.5 ${dbHealth?.database?.status === 'CONNECTED' ? 'text-emerald-500' : 'text-rose-500'} shrink-0`} />
+                  <span>{dbHealth?.database?.status || 'CHECKING...'}</span>
+                </span>
+                <span className="text-[10px] text-slate-400 block">Ping: {dbHealth?.database?.latencyMs || 0}ms latency</span>
+              </div>
+              <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center">
+                <Database className="w-5 h-5 text-slate-500" />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex items-center justify-between">
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Queue Congestion</span>
+                <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${
+                  queueHealth?.lobbyQueue?.congestionLevel === 'HIGH'
+                    ? 'text-rose-700 bg-rose-50 border-rose-100'
+                    : queueHealth?.lobbyQueue?.congestionLevel === 'MODERATE'
+                    ? 'text-amber-700 bg-amber-50 border-amber-100'
+                    : 'text-emerald-700 bg-emerald-50 border-emerald-100'
+                }`}>
+                  <Activity className="w-3.5 h-3.5 shrink-0" />
+                  <span>{queueHealth?.lobbyQueue?.congestionLevel || 'NORMAL'}</span>
+                </span>
+                <span className="text-[10px] text-slate-400 block">{queueHealth?.lobbyQueue?.waiting || 0} patients in waiting lobby</span>
+              </div>
+              <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center">
+                <Users className="w-5 h-5 text-slate-500" />
+              </div>
+            </div>
+          </div>
+
+          {/* System Performance Cards & HTTP Request Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* System Resources Footprint */}
+            <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-5">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-1 border-b border-slate-50">
+                <Cpu className="w-4 h-4 text-teal-600" />
+                <span>Node.js Process Telemetry</span>
+              </h3>
+              
+              {metricsLoading ? (
+                <div className="space-y-4 animate-pulse">
+                  <div className="h-6 bg-slate-50 rounded-lg w-2/3" />
+                  <div className="h-6 bg-slate-50 rounded-lg w-1/2" />
+                  <div className="h-6 bg-slate-50 rounded-lg w-3/4" />
+                </div>
+              ) : (
+                <div className="space-y-4 text-xs">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Server Uptime:</span>
+                    <span className="font-mono font-semibold text-slate-800">
+                      {Math.floor((metrics?.system?.uptime || 0) / 3600)}h {Math.floor(((metrics?.system?.uptime || 0) % 3600) / 60)}m
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span>Node.js Heap Memory RSS:</span>
+                      <span className="font-mono font-semibold text-slate-800">
+                        {metrics?.system?.memory?.heapUsed || 0} MB / {metrics?.system?.memory?.heapTotal || 0} MB
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-teal-500 h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, Math.round(((metrics?.system?.memory?.heapUsed || 1) / (metrics?.system?.memory?.heapTotal || 1)) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span>Virtual RAM (RSS Total):</span>
+                      <span className="font-mono font-semibold text-slate-800">{metrics?.system?.memory?.rss || 0} MB</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-slate-600 pt-1">
+                    <span>Host CPU Cores:</span>
+                    <span className="font-mono font-semibold text-slate-800">{metrics?.system?.cpuCount || 0} Cores</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>System Load Average (1m):</span>
+                    <span className="font-mono font-semibold text-slate-800">{metrics?.system?.loadAverage?.['1m']?.toFixed(2) || '0.00'}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Event Loop Lag delay:</span>
+                    <span className={`font-mono font-semibold ${metrics?.system?.eventLoopLagMs > 50 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {metrics?.system?.eventLoopLagMs || 0}ms
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* HTTP Request Performance Analytics */}
+            <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-5">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-1 border-b border-slate-50">
+                <Activity className="w-4 h-4 text-teal-600" />
+                <span>HTTP Performance Metrics</span>
+              </h3>
+
+              {metricsLoading ? (
+                <div className="space-y-4 animate-pulse">
+                  <div className="h-6 bg-slate-50 rounded-lg w-2/3" />
+                  <div className="h-6 bg-slate-50 rounded-lg w-1/2" />
+                  <div className="h-6 bg-slate-50 rounded-lg w-3/4" />
+                </div>
+              ) : (
+                <div className="space-y-4.5 text-xs">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wide">Total API Requests</span>
+                      <span className="text-lg font-mono font-bold text-slate-800">{metrics?.requests?.totalRequests || 0}</span>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wide">Avg Latency</span>
+                      <span className="text-lg font-mono font-bold text-teal-600">{metrics?.requests?.averageLatencyMs || 0}ms</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Slow API Calls (&gt;500ms):</span>
+                    <span className={`font-mono font-semibold ${metrics?.requests?.slowRequestsCount > 0 ? 'text-amber-600 font-bold' : 'text-slate-800'}`}>
+                      {metrics?.requests?.slowRequestsCount || 0} requests
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Max Latency recorded:</span>
+                    <span className="font-mono font-semibold text-slate-800">{metrics?.requests?.maxLatencyMs || 0}ms</span>
+                  </div>
+
+                  {/* Status Code Distribution Mini-visualizer */}
+                  <div className="space-y-2 pt-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wide">Status Distribution</span>
+                    <div className="flex gap-2">
+                      <div className="flex-1 bg-emerald-50 border border-emerald-100 p-1.5 rounded-lg text-center">
+                        <span className="text-[9px] font-bold text-emerald-800 block">2xx</span>
+                        <span className="font-mono text-xs font-semibold text-emerald-700">{metrics?.requests?.statusDistribution?.['2xx'] || 0}</span>
+                      </div>
+                      <div className="flex-1 bg-blue-50 border border-blue-100 p-1.5 rounded-lg text-center">
+                        <span className="text-[9px] font-bold text-blue-800 block">3xx</span>
+                        <span className="font-mono text-xs font-semibold text-blue-700">{metrics?.requests?.statusDistribution?.['3xx'] || 0}</span>
+                      </div>
+                      <div className="flex-1 bg-amber-50 border border-amber-100 p-1.5 rounded-lg text-center">
+                        <span className="text-[9px] font-bold text-amber-800 block">4xx</span>
+                        <span className="font-mono text-xs font-semibold text-amber-700">{metrics?.requests?.statusDistribution?.['4xx'] || 0}</span>
+                      </div>
+                      <div className="flex-1 bg-rose-50 border border-rose-100 p-1.5 rounded-lg text-center">
+                        <span className="text-[9px] font-bold text-rose-800 block">5xx</span>
+                        <span className={`font-mono text-xs font-bold ${metrics?.requests?.statusDistribution?.['5xx'] > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                          {metrics?.requests?.statusDistribution?.['5xx'] || 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Database Telemetry & Storage Volumes */}
+            <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-5">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-1 border-b border-slate-50">
+                <Database className="w-4 h-4 text-teal-600" />
+                <span>Enterprise Storage Metrics</span>
+              </h3>
+
+              {dbHealthLoading ? (
+                <div className="space-y-4 animate-pulse">
+                  <div className="h-6 bg-slate-50 rounded-lg w-2/3" />
+                  <div className="h-6 bg-slate-50 rounded-lg w-1/2" />
+                  <div className="h-6 bg-slate-50 rounded-lg w-3/4" />
+                </div>
+              ) : (
+                <div className="space-y-4 text-xs">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Database Engine:</span>
+                    <span className="font-semibold text-slate-800 uppercase">PostgreSQL</span>
+                  </div>
+
+                  <div className="space-y-2.5 pt-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wide">Active Record Volumes</span>
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="flex items-center justify-between border-b border-slate-50 pb-1">
+                        <span className="text-slate-500">Patients:</span>
+                        <strong className="text-slate-800">{dbHealth?.database?.aggregates?.patientsCount || 0}</strong>
+                      </div>
+                      <div className="flex items-center justify-between border-b border-slate-50 pb-1">
+                        <span className="text-slate-500">Appointments:</span>
+                        <strong className="text-slate-800">{dbHealth?.database?.aggregates?.appointmentsCount || 0}</strong>
+                      </div>
+                      <div className="flex items-center justify-between border-b border-slate-50 pb-1">
+                        <span className="text-slate-500">Clinics:</span>
+                        <strong className="text-slate-800">{dbHealth?.database?.aggregates?.clinicsCount || 0}</strong>
+                      </div>
+                      <div className="flex items-center justify-between border-b border-slate-50 pb-1">
+                        <span className="text-slate-500">Staff Members:</span>
+                        <strong className="text-slate-800">{dbHealth?.database?.aggregates?.usersCount || 0}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-slate-600 pt-2 border-t border-slate-50">
+                    <span>Audit Logs record backlog:</span>
+                    <span className="font-mono font-semibold text-slate-800">{dbHealth?.database?.aggregates?.auditLogsCount || 0} records</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Queue Health: Patient Lobby Tokens & Message dispatch backlogs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Patient Queue Management health */}
+            <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-5">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center justify-between pb-1 border-b border-slate-50">
+                <span className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-teal-600" />
+                  <span>Clinic Lobby Queue Engine</span>
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Patient Tokens</span>
+              </h3>
+
+              {queueHealthLoading ? (
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-8 bg-slate-50 rounded-xl" />
+                  <div className="h-8 bg-slate-50 rounded-xl" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-4 gap-3 text-center">
+                    <div className="bg-amber-50/50 border border-amber-100/60 p-2.5 rounded-xl">
+                      <span className="text-[10px] font-bold text-amber-800 block">Waiting</span>
+                      <span className="font-mono text-base font-bold text-amber-700">{queueHealth?.lobbyQueue?.waiting || 0}</span>
+                    </div>
+                    <div className="bg-teal-50/50 border border-teal-100/60 p-2.5 rounded-xl">
+                      <span className="text-[10px] font-bold text-teal-800 block">Calling</span>
+                      <span className="font-mono text-base font-bold text-teal-700">{queueHealth?.lobbyQueue?.calling || 0}</span>
+                    </div>
+                    <div className="bg-emerald-50/50 border border-emerald-100/60 p-2.5 rounded-xl">
+                      <span className="text-[10px] font-bold text-emerald-800 block">Done</span>
+                      <span className="font-mono text-base font-bold text-emerald-700">{queueHealth?.lobbyQueue?.completed || 0}</span>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-xl">
+                      <span className="text-[10px] font-bold text-slate-500 block">Skipped</span>
+                      <span className="font-mono text-base font-bold text-slate-600">{queueHealth?.lobbyQueue?.skipped || 0}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-slate-500 bg-slate-50 border border-slate-100 p-3.5 rounded-xl leading-relaxed">
+                    <span className="font-semibold text-slate-700 block mb-0.5">Queue Congestion Assessment</span>
+                    Our algorithms have categorized current clinic floor activity as <strong className="text-teal-700">{queueHealth?.lobbyQueue?.congestionLevel || 'NORMAL'}</strong>. 
+                    This rating is dynamic based on patient lobby wait parameters.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Notification Dispatch Queue Health */}
+            <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-5">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center justify-between pb-1 border-b border-slate-50">
+                <span className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-teal-600" />
+                  <span>Notification Delivery Engine</span>
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SMS / Email Queues</span>
+              </h3>
+
+              {queueHealthLoading ? (
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-8 bg-slate-50 rounded-xl" />
+                  <div className="h-8 bg-slate-50 rounded-xl" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-4 gap-3 text-center">
+                    <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-xl">
+                      <span className="text-[10px] font-bold text-slate-500 block">Backlog</span>
+                      <span className="font-mono text-base font-bold text-slate-700">{queueHealth?.notificationQueue?.pending || 0}</span>
+                    </div>
+                    <div className="bg-teal-50/50 border border-teal-100/60 p-2.5 rounded-xl">
+                      <span className="text-[10px] font-bold text-teal-800 block">Sent</span>
+                      <span className="font-mono text-base font-bold text-teal-700">{queueHealth?.notificationQueue?.sent || 0}</span>
+                    </div>
+                    <div className="bg-emerald-50/50 border border-emerald-100/60 p-2.5 rounded-xl">
+                      <span className="text-[10px] font-bold text-emerald-800 block">Delivered</span>
+                      <span className="font-mono text-base font-bold text-emerald-700">{queueHealth?.notificationQueue?.delivered || 0}</span>
+                    </div>
+                    <div className="bg-rose-50 border border-rose-100 p-2.5 rounded-xl">
+                      <span className="text-[10px] font-bold text-rose-800 block">Failed</span>
+                      <span className={`font-mono text-base font-bold ${queueHealth?.notificationQueue?.failed > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                        {queueHealth?.notificationQueue?.failed || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span className="text-slate-600 font-semibold">Gateway Success Delivery Rate:</span>
+                    <strong className="text-emerald-700 font-mono text-sm">{queueHealth?.notificationQueue?.successRatePercentage || 100}%</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Log Stream Analysis */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            {/* Top Visited Endpoints list (2/5 size) */}
+            <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-4 md:col-span-2">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 pb-1 border-b border-slate-50">
+                <Globe className="w-4 h-4 text-teal-600" />
+                <span>Endpoint Utilization Traffic</span>
+              </h3>
+
+              {metricsLoading ? (
+                <div className="space-y-2.5 animate-pulse">
+                  {[1, 2, 3].map(n => <div key={n} className="h-8 bg-slate-50 rounded-xl" />)}
+                </div>
+              ) : !metrics?.requests?.topEndpoints || metrics?.requests?.topEndpoints.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-4 text-center">Waiting for inbound API requests telemetry to populate...</p>
+              ) : (
+                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                  {metrics?.requests?.topEndpoints.map((item: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 text-xs transition border border-transparent hover:border-slate-100">
+                      <span className="font-mono text-[11px] text-slate-600 truncate max-w-[70%]">{item.endpoint}</span>
+                      <span className="font-semibold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full text-[10px]">
+                        {item.count} hits
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Real-time System Error Logging feed (3/5 size) */}
+            <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-4 md:col-span-3">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center justify-between pb-1 border-b border-slate-50">
+                <span className="flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-rose-500 animate-pulse" />
+                  <span>Real-time Operations Error Log</span>
+                </span>
+                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">Live Logging Buffer</span>
+              </h3>
+
+              {metricsLoading ? (
+                <div className="space-y-2.5 animate-pulse">
+                  {[1, 2, 3].map(n => <div key={n} className="h-8 bg-slate-50 rounded-xl" />)}
+                </div>
+              ) : !metrics?.requests?.recentErrors || metrics?.requests?.recentErrors.length === 0 ? (
+                <div className="border border-emerald-100/60 bg-emerald-50/20 p-8 rounded-2xl text-center text-xs text-emerald-800 space-y-2">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                  <p className="font-semibold">Zero Exceptions Raised</p>
+                  <p className="text-[10px] text-emerald-600">The server process is completely healthy. No fatal system crashes detected.</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                  {metrics?.requests?.recentErrors.map((errLog: any, idx: number) => (
+                    <div key={idx} className="border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-slate-50/30 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedErrorIdx(expandedErrorIdx === idx ? null : idx)}
+                        className="w-full p-3 flex items-start justify-between text-left transition hover:bg-slate-100/40 gap-3"
+                      >
+                        <div className="space-y-1 truncate">
+                          <span className="font-semibold text-rose-700 block truncate">{errLog.message}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {errLog.method && `${errLog.method} ${errLog.url} • `} 
+                            {new Date(errLog.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-teal-600 shrink-0 font-semibold uppercase tracking-wider underline cursor-pointer">
+                          {expandedErrorIdx === idx ? 'Collapse' : 'Details'}
+                        </span>
+                      </button>
+
+                      {expandedErrorIdx === idx && (
+                        <div className="bg-slate-950 text-slate-100 p-3.5 font-mono text-[10px] leading-relaxed border-t border-slate-200 overflow-x-auto max-h-48 whitespace-pre">
+                          <p className="text-rose-400 font-semibold mb-1">Stack Trace:</p>
+                          {errLog.stack || 'No stack trace details compiled.'}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

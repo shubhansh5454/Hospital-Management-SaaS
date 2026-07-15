@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.ts';
+import { performanceMetrics } from '../utils/metrics.ts';
 
 export class AppError extends Error {
   public readonly statusCode: number;
@@ -24,6 +25,9 @@ export const errorHandler = (
 
   // Log the complete error trace
   logger.error(`Error processing request: ${req.method} ${req.url}`, err);
+  
+  // Record inside performance metrics accumulator
+  performanceMetrics.recordError(message, err.stack, req.method, req.url);
 
   const isProd = process.env.NODE_ENV === 'production';
 
