@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { prisma } from '../../db/prisma.ts';
+import { UserRepository } from '../repositories/user.ts';
 import { AppError } from '../middleware/errorHandler.ts';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.ts';
 import { RegisterInput, LoginInput } from '../validation/auth.ts';
@@ -13,13 +13,7 @@ export class AuthService {
     const { email, password, name, role } = input;
 
     // Check if user already exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: email.toLowerCase() }
-        ]
-      }
-    });
+    const existingUser = await UserRepository.findByEmail(email);
 
     if (existingUser) {
       throw new AppError('User with this email already exists', 400);
@@ -33,14 +27,12 @@ export class AuthService {
     const localUid = `local_${crypto.randomUUID()}`;
 
     // Create user in the database
-    const user = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        name,
-        role,
-        uid: localUid,
-      },
+    const user = await UserRepository.create({
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      name,
+      role,
+      uid: localUid,
     });
 
     // Generate tokens
@@ -48,10 +40,7 @@ export class AuthService {
     const refreshToken = generateRefreshToken(user.id);
 
     // Save refresh token to the database
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { refreshToken },
-    });
+    await UserRepository.updateRefreshToken(user.id, refreshToken);
 
     // Omit password from output
     const { password: _, refreshToken: __, ...userResponse } = user;
@@ -70,9 +59,7 @@ export class AuthService {
     const { email, password } = input;
 
     // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
+    const user = await UserRepository.findByEmail(email);
 
     if (!user || !user.password) {
       throw new AppError('Invalid email or password', 401);
@@ -89,10 +76,7 @@ export class AuthService {
     const refreshToken = generateRefreshToken(user.id);
 
     // Save refresh token to the database
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { refreshToken },
-    });
+    await UserRepository.updateRefreshToken(user.id, refreshToken);
 
     // Omit password from output
     const { password: _, refreshToken: __, ...userResponse } = user;
@@ -113,9 +97,7 @@ export class AuthService {
       const decoded = verifyRefreshToken(token);
 
       // 2. Find user in database and verify the refresh token matches
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-      });
+      const user = await UserRepository.findById(decoded.id);
 
       if (!user || user.refreshToken !== token) {
         throw new AppError('Invalid refresh token', 401);
@@ -126,10 +108,7 @@ export class AuthService {
       const newRefreshToken = generateRefreshToken(user.id);
 
       // 4. Update refresh token in database
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { refreshToken: newRefreshToken },
-      });
+      await UserRepository.updateRefreshToken(user.id, newRefreshToken);
 
       return {
         accessToken: newAccessToken,
@@ -145,10 +124,7 @@ export class AuthService {
    * Log out a user by revoking their refresh token
    */
   public static async logout(userId: number) {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { refreshToken: null },
-    });
+    await UserRepository.updateRefreshToken(userId, null);
 
     return { success: true };
   }

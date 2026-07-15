@@ -81,3 +81,4 @@ export class SimpleCache {
 // Global cache instances for specific domains
 export const settingsCache = new SimpleCache(200, 300); // 5 minutes TTL for clinic settings
 export const featureFlagsCache = new SimpleCache(100, 120); // 2 minutes TTL for feature flags
+export const userProfileCache = new SimpleCache(500, 10); // 10 seconds TTL for fast user session checks

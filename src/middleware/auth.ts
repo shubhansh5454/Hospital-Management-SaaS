@@ -3,6 +3,8 @@ import { adminAuth } from '../lib/firebase-admin.ts';
 import { getOrCreateUser } from '../db/users.ts';
 import { verifyAccessToken } from '../server/utils/jwt.ts';
 import { prisma } from '../db/prisma.ts';
+import { UserRepository } from '../server/repositories/user.ts';
+import { userProfileCache } from '../server/utils/cache.ts';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -22,11 +24,15 @@ export const resolveTenant = async (req: AuthRequest, res: Response, next: NextF
       return next();
     }
 
-    // Fetch the freshest tenantId and clinicId from the database
-    const dbUser = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: { tenantId: true, clinicId: true, role: true },
-    });
+    // Fetch the freshest tenantId and clinicId from cache/database
+    const cacheKey = `user_profile_${req.user.id}`;
+    let dbUser = userProfileCache.get<any>(cacheKey);
+    if (!dbUser) {
+      dbUser = await UserRepository.findById(req.user.id);
+      if (dbUser) {
+        userProfileCache.set(cacheKey, dbUser);
+      }
+    }
 
     if (dbUser) {
       req.user.tenantId = dbUser.tenantId;
@@ -110,9 +116,15 @@ export const requireAuth = async (
     // 1. Try local custom JWT authentication first
     try {
       const decodedLocal = verifyAccessToken(token);
-      const dbUser = await prisma.user.findUnique({
-        where: { id: decodedLocal.id },
-      });
+      const cacheKey = `user_profile_${decodedLocal.id}`;
+      let dbUser = userProfileCache.get<any>(cacheKey);
+      
+      if (!dbUser) {
+        dbUser = await UserRepository.findById(decodedLocal.id);
+        if (dbUser) {
+          userProfileCache.set(cacheKey, dbUser);
+        }
+      }
 
       if (dbUser) {
         req.user = {
@@ -136,7 +148,16 @@ export const requireAuth = async (
     // Sync with PostgreSQL
     const email = decodedToken.email || '';
     const name = decodedToken.name || email.split('@')[0] || 'User';
-    const dbUser = await getOrCreateUser(decodedToken.uid, email, name);
+
+    const cacheKeyFirebase = `user_profile_fb_${decodedToken.uid}`;
+    let dbUser = userProfileCache.get<any>(cacheKeyFirebase);
+    
+    if (!dbUser) {
+      dbUser = await getOrCreateUser(decodedToken.uid, email, name);
+      userProfileCache.set(cacheKeyFirebase, dbUser);
+      // Also seed standard cache key to avoid database hit on next steps
+      userProfileCache.set(`user_profile_${dbUser.id}`, dbUser);
+    }
 
     req.user = {
       id: dbUser.id,
