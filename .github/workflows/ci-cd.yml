@@ -33,6 +33,9 @@ jobs:
       - name: Run TypeScript Compiler Check (Linter)
         run: npm run lint
 
+      - name: Run Automated Test Suites
+        run: npm test
+
   # ==============================================================================
   # Job 2: Build & Publish Container Images
   # ==============================================================================
