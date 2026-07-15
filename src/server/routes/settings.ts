@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRoles } from '../../middleware/auth.ts';
 import { prisma } from '../../db/prisma.ts';
 import { AuthRequest } from '../../middleware/auth.ts';
+import { settingsCache } from '../utils/cache.ts';
 
 const router = Router();
 
@@ -11,6 +12,12 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
     const clinicId = req.user?.clinicId;
     if (!clinicId) {
       return res.status(400).json({ error: 'No clinic context found for your user.' });
+    }
+
+    const cacheKey = `settings_clinic_${clinicId}`;
+    const cached = settingsCache.get(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
     }
 
     // Try to find setting
@@ -79,6 +86,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
       });
     }
 
+    settingsCache.set(cacheKey, settings);
     return res.status(200).json(settings);
   } catch (err: any) {
     console.error('Error in GET /api/settings:', err);
@@ -90,6 +98,13 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 router.get('/public', async (req, res) => {
   try {
     const { slug, domain } = req.query;
+    
+    const cacheKey = `settings_public_slug_${slug || ''}_domain_${domain || ''}`;
+    const cached = settingsCache.get(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+
     let settings = null;
 
     if (domain) {
@@ -108,7 +123,7 @@ router.get('/public', async (req, res) => {
 
     if (!settings) {
       // Return default branding
-      return res.status(200).json({
+      const defaultBranding = {
         hospitalName: 'CareSync',
         logoUrl: '',
         primaryColor: '#0d9488',
@@ -117,10 +132,12 @@ router.get('/public', async (req, res) => {
         loginSubtitle: 'Dynamic EMR & Practice Management Platform',
         loginBgUrl: '',
         customDomain: null
-      });
+      };
+      settingsCache.set(cacheKey, defaultBranding);
+      return res.status(200).json(defaultBranding);
     }
 
-    return res.status(200).json({
+    const result = {
       hospitalName: settings.hospitalName || settings.clinic.name,
       logoUrl: settings.logoUrl || '',
       primaryColor: settings.primaryColor || '#0d9488',
@@ -133,7 +150,10 @@ router.get('/public', async (req, res) => {
       emailFooter: settings.emailFooter || '',
       pdfHeader: settings.pdfHeader || '',
       pdfFooter: settings.pdfFooter || ''
-    });
+    };
+
+    settingsCache.set(cacheKey, result);
+    return res.status(200).json(result);
   } catch (err: any) {
     console.error('Error in GET /api/settings/public:', err);
     return res.status(500).json({ error: 'Failed to retrieve public settings' });
@@ -284,6 +304,7 @@ router.put('/', requireAuth, requireRoles(['admin', 'superadmin']), async (req: 
       }
     });
 
+    settingsCache.invalidatePrefix('settings_');
     return res.status(200).json(updated);
   } catch (err: any) {
     console.error('Error in PUT /api/settings:', err);

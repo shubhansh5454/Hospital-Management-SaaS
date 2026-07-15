@@ -1,44 +1,58 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './components/AuthContext.tsx';
 import { RealTimeProvider } from './components/RealTimeContext.tsx';
 import { FeatureFlagProvider } from './components/FeatureFlagContext.tsx';
-import AuthScreen from './components/AuthScreen.tsx';
-import PatientPortal from './components/PatientPortal.tsx';
-import Layout from './components/Layout.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import Reception from './components/Reception.tsx';
-import Doctors from './components/Doctors.tsx';
-import Patients from './components/Patients.tsx';
-import Appointments from './components/Appointments.tsx';
-import Emr from './components/Emr.tsx';
-import Billing from './components/Billing.tsx';
-import Pharmacy from './components/Pharmacy.tsx';
-import Laboratory from './components/Laboratory.tsx';
-import Inventory from './components/Inventory.tsx';
-import Notifications from './components/Notifications.tsx';
-import Reports from './components/Reports.tsx';
-import SaaSAdmin from './components/SaaSAdmin.tsx';
-import ClinicSettings from './components/ClinicSettings.tsx';
-import AccessManagement from './components/AccessManagement.tsx';
-import Documents from './components/Documents.tsx';
-import AIAssistant from './components/AIAssistant.tsx';
-import VideoConsultation from './components/VideoConsultation.tsx';
-import Insurance from './components/Insurance.tsx';
-import HRManagement from './components/HRManagement.tsx';
-import BackupManagement from './components/BackupManagement.tsx';
 import { HeartPulse } from 'lucide-react';
 
+// Eager load layout because it defines the shell of the application
+import Layout from './components/Layout.tsx';
 
+// Lazy load screens for route-based chunk splitting
+const AuthScreen = lazy(() => import('./components/AuthScreen.tsx'));
+const PatientPortal = lazy(() => import('./components/PatientPortal.tsx'));
+const Dashboard = lazy(() => import('./components/Dashboard.tsx'));
+const Reception = lazy(() => import('./components/Reception.tsx'));
+const Doctors = lazy(() => import('./components/Doctors.tsx'));
+const Patients = lazy(() => import('./components/Patients.tsx'));
+const Appointments = lazy(() => import('./components/Appointments.tsx'));
+const Emr = lazy(() => import('./components/Emr.tsx'));
+const Billing = lazy(() => import('./components/Billing.tsx'));
+const Pharmacy = lazy(() => import('./components/Pharmacy.tsx'));
+const Laboratory = lazy(() => import('./components/Laboratory.tsx'));
+const Inventory = lazy(() => import('./components/Inventory.tsx'));
+const Notifications = lazy(() => import('./components/Notifications.tsx'));
+const Reports = lazy(() => import('./components/Reports.tsx'));
+const SaaSAdmin = lazy(() => import('./components/SaaSAdmin.tsx'));
+const ClinicSettings = lazy(() => import('./components/ClinicSettings.tsx'));
+const AccessManagement = lazy(() => import('./components/AccessManagement.tsx'));
+const Documents = lazy(() => import('./components/Documents.tsx'));
+const AIAssistant = lazy(() => import('./components/AIAssistant.tsx'));
+const VideoConsultation = lazy(() => import('./components/VideoConsultation.tsx'));
+const Insurance = lazy(() => import('./components/Insurance.tsx'));
+const HRManagement = lazy(() => import('./components/HRManagement.tsx'));
+const BackupManagement = lazy(() => import('./components/BackupManagement.tsx'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
+      staleTime: 1000 * 30, // Keep data fresh for 30 seconds to prevent redundant fetch storm on navigation
     },
   },
 });
+
+function TabLoader() {
+  return (
+    <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-slate-100 shadow-sm animate-pulse min-h-[400px]">
+      <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center mb-3">
+        <HeartPulse className="w-5 h-5 animate-bounce" />
+      </div>
+      <p className="text-xs text-slate-500 font-medium font-sans">Syncing screen module...</p>
+    </div>
+  );
+}
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
@@ -74,39 +88,47 @@ function AppContent() {
   }
 
   if (!user) {
-    return <AuthScreen />;
+    return (
+      <Suspense fallback={<TabLoader />}>
+        <AuthScreen />
+      </Suspense>
+    );
   }
 
   if (profile?.role === 'patient') {
-    return <PatientPortal />;
+    return (
+      <Suspense fallback={<TabLoader />}>
+        <PatientPortal />
+      </Suspense>
+    );
   }
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {activeTab === 'saas' && <SaaSAdmin />}
-      {activeTab === 'clinic-settings' && <ClinicSettings />}
-      {activeTab === 'roles-permissions' && <AccessManagement />}
-      {activeTab === 'dashboard' && <Dashboard />}
-      {activeTab === 'reception' && <Reception />}
-      {activeTab === 'emr' && <Emr />}
-      {activeTab === 'doctors' && <Doctors />}
-      {activeTab === 'patients' && <Patients />}
-      {activeTab === 'appointments' && <Appointments />}
-      {activeTab === 'billing' && <Billing />}
-      {activeTab === 'pharmacy' && <Pharmacy />}
-      {activeTab === 'laboratory' && <Laboratory />}
-      {activeTab === 'inventory' && <Inventory />}
-      {activeTab === 'notifications' && <Notifications />}
-      {activeTab === 'reports' && <Reports />}
-      {activeTab === 'documents' && <Documents />}
-      {activeTab === 'ai-assistant' && <AIAssistant />}
-      {activeTab === 'video-consultation' && <VideoConsultation />}
-      {activeTab === 'insurance' && <Insurance />}
-      {activeTab === 'hr' && <HRManagement />}
-      {activeTab === 'backup' && <BackupManagement />}
+      <Suspense fallback={<TabLoader />}>
+        {activeTab === 'saas' && <SaaSAdmin />}
+        {activeTab === 'clinic-settings' && <ClinicSettings />}
+        {activeTab === 'roles-permissions' && <AccessManagement />}
+        {activeTab === 'dashboard' && <Dashboard />}
+        {activeTab === 'reception' && <Reception />}
+        {activeTab === 'emr' && <Emr />}
+        {activeTab === 'doctors' && <Doctors />}
+        {activeTab === 'patients' && <Patients />}
+        {activeTab === 'appointments' && <Appointments />}
+        {activeTab === 'billing' && <Billing />}
+        {activeTab === 'pharmacy' && <Pharmacy />}
+        {activeTab === 'laboratory' && <Laboratory />}
+        {activeTab === 'inventory' && <Inventory />}
+        {activeTab === 'notifications' && <Notifications />}
+        {activeTab === 'reports' && <Reports />}
+        {activeTab === 'documents' && <Documents />}
+        {activeTab === 'ai-assistant' && <AIAssistant />}
+        {activeTab === 'video-consultation' && <VideoConsultation />}
+        {activeTab === 'insurance' && <Insurance />}
+        {activeTab === 'hr' && <HRManagement />}
+        {activeTab === 'backup' && <BackupManagement />}
+      </Suspense>
     </Layout>
-
-
   );
 }
 

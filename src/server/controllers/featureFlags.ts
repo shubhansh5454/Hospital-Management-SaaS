@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middleware/auth.ts';
 import { FeatureFlagService } from '../services/featureFlags.ts';
 import { AppError } from '../middleware/errorHandler.ts';
+import { featureFlagsCache } from '../utils/cache.ts';
 
 export class FeatureFlagController {
   /**
@@ -15,7 +16,14 @@ export class FeatureFlagController {
         return res.json([]);
       }
 
+      const cacheKey = `features_clinic_${clinicId}`;
+      const cached = featureFlagsCache.get(cacheKey);
+      if (cached) {
+        return res.status(200).json(cached);
+      }
+
       const features = await FeatureFlagService.getFeaturesForClinic(clinicId);
+      featureFlagsCache.set(cacheKey, features);
       res.status(200).json(features);
     } catch (error) {
       next(error);
@@ -51,6 +59,8 @@ export class FeatureFlagController {
         plansEnabled,
       });
 
+      featureFlagsCache.invalidatePrefix('features_');
+
       res.status(200).json({
         status: 'success',
         message: `Feature flag "${key}" updated successfully.`,
@@ -78,6 +88,8 @@ export class FeatureFlagController {
         parseInt(clinicId, 10),
         overrideState
       );
+
+      featureFlagsCache.invalidatePrefix('features_');
 
       res.status(200).json({
         status: 'success',

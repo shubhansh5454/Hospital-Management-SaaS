@@ -32,6 +32,8 @@ model User {
   tenantId      Int?           @map("tenant_id")
   tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([clinicId])
+  @@index([role])
   @@map("users")
 }
 
@@ -58,6 +60,8 @@ model Patient {
   clinic         Clinic?       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   files          ClinicFile[]
 
+  @@index([clinicId])
+  @@index([email])
   @@map("patients")
 }
 
@@ -77,6 +81,10 @@ model Appointment {
   queueToken QueueToken?
   clinic    Clinic?  @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
+  @@index([clinicId])
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([date])
   @@map("appointments")
 }
 
@@ -162,6 +170,8 @@ model EmrRecord {
   doctor            User     @relation(fields: [doctorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@index([patientId])
+  @@index([doctorId])
   @@map("emr_records")
 }
 
@@ -592,6 +602,9 @@ model AuditLog {
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   clinic    Clinic?  @relation(fields: [clinicId], references: [id], onDelete: SetNull)
 
+  @@index([clinicId])
+  @@index([userId])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -617,6 +630,9 @@ model ClinicFile {
   clinic       Clinic?      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   uploadedBy   User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
+  @@index([clinicId])
+  @@index([patientId])
+  @@index([parentId])
   @@map("clinic_files")
 }
 
