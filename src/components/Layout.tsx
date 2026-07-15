@@ -28,7 +28,9 @@ import {
   Shield,
   UserCheck,
   Database,
-  Search
+  Search,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 
@@ -51,6 +53,21 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
   const [refreshing, setRefreshing] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   // Query: Fetch system settings to retrieve custom White-Label colors & logo dynamically
   const { data: systemSettings } = useQuery({
@@ -311,6 +328,19 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
 
           {/* Sandbox Role Switcher Controller */}
           <div className="flex items-center gap-3">
+            {/* Elegant Dark/Light Theme Toggle */}
+            <button
+              onClick={() => setIsDarkMode((prev) => !prev)}
+              title="Toggle display theme"
+              className="w-9 h-9 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all cursor-pointer shadow-xs"
+            >
+              {isDarkMode ? (
+                <Sun className="w-4.5 h-4.5 text-amber-500 animate-fadeIn" />
+              ) : (
+                <Moon className="w-4.5 h-4.5 text-indigo-600 animate-fadeIn" />
+              )}
+            </button>
+
             <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100/70 px-2.5 py-1 rounded-full">
               <Sparkles className="w-3 h-3 text-amber-500" />
               <span>Sandbox Mode</span>

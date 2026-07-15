@@ -5,3 +5,190 @@
   --font-display: "Plus Jakarta Sans", var(--font-sans);
   --font-mono: "JetBrains Mono", monospace;
 }
+
+/* Enable class-based dark mode variant for Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Smooth theme transitions for color, border, and background changes */
+*, *::before, *::after {
+  transition-property: background-color, border-color, text-color, fill, stroke, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Base style overrides for Dark Mode */
+.dark body {
+  background-color: #090d16;
+  color: #f8fafc;
+}
+
+.dark #layout_root {
+  background-color: #090d16 !important;
+}
+
+/* Sidebar and Header styles in dark mode */
+.dark aside {
+  background-color: #0e1321 !important;
+  border-color: #1e294b !important;
+}
+
+.dark aside button {
+  color: #94a3b8 !important;
+}
+
+.dark aside button:hover {
+  background-color: #1e294b !important;
+  color: #f1f5f9 !important;
+}
+
+.dark header {
+  background-color: #0e1321 !important;
+  border-color: #1e294b !important;
+}
+
+.dark header h2 {
+  color: #f8fafc !important;
+}
+
+.dark header button, .dark header span {
+  color: #94a3b8 !important;
+}
+
+.dark main {
+  background-color: #090d16 !important;
+}
+
+/* Cards, Inputs, and Tables in dark mode */
+.dark .bg-white {
+  background-color: #0e1321 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark .border-slate-50,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: #1e294b !important;
+}
+
+.dark .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-600 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-slate-500 {
+  color: #64748b !important;
+}
+
+.dark .text-slate-400 {
+  color: #475569 !important;
+}
+
+.dark .bg-slate-50 {
+  background-color: #090d16 !important;
+}
+
+.dark .bg-slate-50\/50 {
+  background-color: #090d1680 !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: #1e294b !important;
+}
+
+.dark .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+/* Form Controls in dark mode */
+.dark input, 
+.dark select, 
+.dark textarea {
+  background-color: #090d16 !important;
+  border-color: #1e294b !important;
+  color: #f1f5f9 !important;
+}
+
+.dark input::placeholder, 
+.dark textarea::placeholder {
+  color: #475569 !important;
+}
+
+.dark select option {
+  background-color: #0e1321 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Tables styling in dark mode */
+.dark table th {
+  color: #94a3b8 !important;
+  border-color: #1e294b !important;
+}
+
+.dark table td {
+  color: #cbd5e1 !important;
+  border-color: #1e294b !important;
+}
+
+.dark tr:hover {
+  background-color: #1e294b40 !important;
+}
+
+/* Modals in dark mode */
+.dark .fixed.inset-0.bg-slate-900\/60 {
+  background-color: rgba(5, 8, 16, 0.8) !important;
+}
+
+/* Custom Scrollbars for premium aesthetic */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #1e294b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
