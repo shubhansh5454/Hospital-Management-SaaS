@@ -13,6 +13,43 @@ export const createFileSchema = z.object({
   content: z.string().nullable().optional(), // Holds the Base64-encoded string
   patientId: z.number().nullable().optional(),
   accessRoles: z.string().nullable().optional().default('admin,doctor,reception,patient'),
+}).refine(data => {
+  if (data.isFolder) {
+    return true;
+  }
+  
+  // File size validation: limit to 10MB (10,485,760 bytes)
+  if (data.size && data.size > 10 * 1024 * 1024) {
+    return false;
+  }
+
+  // Check file extension safety
+  const parts = data.name.split('.');
+  const ext = parts.length > 1 ? parts.pop()?.toLowerCase() : '';
+  const dangerousExtensions = ['exe', 'bat', 'cmd', 'sh', 'bash', 'js', 'mjs', 'ts', 'py', 'php', 'pl', 'rb', 'vbs', 'scr', 'msi', 'dll', 'html', 'htm', 'jar'];
+  if (ext && dangerousExtensions.includes(ext)) {
+    return false;
+  }
+
+  // Check MIME Type safety if specified
+  if (data.mimeType) {
+    const allowedMimeTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+      'application/pdf',
+      'text/plain', 'text/csv', 'text/markdown',
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/zip', 'application/x-zip-compressed'
+    ];
+    if (!allowedMimeTypes.includes(data.mimeType)) {
+      return false;
+    }
+  }
+
+  return true;
+}, {
+  message: "Invalid file: File size must not exceed 10MB and dangerous executable extensions are strictly prohibited.",
+  path: ["name"]
 });
 
 export const updateFileSchema = z.object({

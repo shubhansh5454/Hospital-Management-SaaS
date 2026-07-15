@@ -7,6 +7,13 @@ import { requestLogger } from './src/server/middleware/requestLogger.ts';
 import apiRouter from './src/server/routes/index.ts';
 import { errorHandler } from './src/server/middleware/errorHandler.ts';
 import { RolesService } from './src/server/services/roles.ts';
+import { 
+  secureHeaders, 
+  rateLimiter, 
+  csrfProtection, 
+  xssSanitizer, 
+  sqlInjectionDefense 
+} from './src/server/middleware/security.ts';
 
 async function startServer() {
   const app = express();
@@ -32,6 +39,21 @@ async function startServer() {
   
   // Basic middlewares
   app.use(express.json());
+  
+  // Apply robust secure response headers (HSTS, CSP, X-Content-Type-Options, frame ancestry protections)
+  app.use(secureHeaders);
+  
+  // Recursively sanitize query, param, and body payloads to mitigate XSS script vector injection
+  app.use(xssSanitizer);
+  
+  // Actively inspect input payloads for common SQL injection attempts to reject bad inputs
+  app.use(sqlInjectionDefense);
+  
+  // Verify referer/origin on state-changing API operations to validate against CSRF forgery
+  app.use(csrfProtection);
+  
+  // Apply standard request rate limiting to /api routes to prevent DoS/brute force abuse
+  app.use('/api', rateLimiter('api'));
   
   // Request execution logging middleware
   app.use(requestLogger);
