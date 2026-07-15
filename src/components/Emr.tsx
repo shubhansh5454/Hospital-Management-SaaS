@@ -27,6 +27,7 @@ import {
   CalendarCheck2
 } from 'lucide-react';
 import { Patient, EmrRecord, PrescriptionItem, AttachmentItem } from '../types/index.ts';
+import CdsPanel from './CdsPanel.tsx';
 
 export default function Emr() {
   const { token, profile } = useAuth();
@@ -93,6 +94,19 @@ export default function Emr() {
   // Follow-up
   const [followNotes, setFollowNotes] = useState('');
   const [followDate, setFollowDate] = useState('');
+
+  // AI CDS Sign-Off Callback Handler
+  const handleApproveCdsSuggestions = (approvedMeds: PrescriptionItem[], primaryDiagnosis: string, notes: string) => {
+    setPrescriptionsList(approvedMeds);
+    if (primaryDiagnosis && !encDiagnosis) {
+      setEncDiagnosis(primaryDiagnosis);
+    }
+    setSoapP((prev) => {
+      const header = `[AI Decision Support Review Done]`;
+      if (prev.includes(header)) return prev;
+      return `${prev}\n\n${header}\n${notes}`.trim();
+    });
+  };
 
   // ----------------------------------------------------
   // API Queries & Mutations
@@ -1368,6 +1382,19 @@ export default function Emr() {
                       </div>
                     </div>
                   </div>
+
+                  {/* AI Clinical Decision Support Panel */}
+                  {isClinician && activePatientId && (
+                    <div className="mt-6 border-t border-slate-100 pt-6">
+                      <CdsPanel
+                        patientId={activePatientId}
+                        symptoms={soapS || encDiagnosis}
+                        proposedMedications={prescriptionsList}
+                        appointmentId={null}
+                        onApproveSuggestions={handleApproveCdsSuggestions}
+                      />
+                    </div>
+                  )}
 
                   {/* Form Submission Actions */}
                   <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
