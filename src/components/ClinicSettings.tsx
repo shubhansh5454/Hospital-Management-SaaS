@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext.tsx';
+import { useFeatureFlags } from './FeatureFlagContext.tsx';
 import { 
   Building2, 
   Layers, 
@@ -69,6 +70,7 @@ const SAAS_PLAN_TIERS = [
 
 export default function ClinicSettings() {
   const { token, profile } = useAuth();
+  const { features } = useFeatureFlags();
   const queryClient = useQueryClient();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -643,6 +645,7 @@ export default function ClinicSettings() {
           {usageLoading ? (
             <div className="text-center py-12 text-xs text-slate-400">Syncing subscription usage data...</div>
           ) : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Users Limit */}
               <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm space-y-4">
@@ -705,6 +708,55 @@ export default function ClinicSettings() {
                 </div>
               </div>
             </div>
+
+            {/* Feature Access Matrix Panel */}
+            <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                <div className="space-y-0.5">
+                  <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-teal-500" />
+                    <span>SaaS Module Access Matrix</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400">Real-time dynamic status of clinic EMR modules authorized for your tenant subscription plan.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab('plans')}
+                  className="text-xs text-teal-600 hover:text-teal-700 font-semibold cursor-pointer"
+                >
+                  Upgrade Plan &rarr;
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {features.map((f) => (
+                  <div key={f.key} className="flex items-start justify-between border border-slate-50 p-4 rounded-2xl bg-slate-50/20">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-800 text-xs">{f.name}</span>
+                        {f.hasOverride && (
+                          <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">OVERRIDE ACTIVE</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 max-w-sm">{f.description}</p>
+                    </div>
+
+                    <div className="flex items-center">
+                      {f.isEnabled ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100/60 px-2 py-0.5 rounded-full">
+                          <Check className="w-3 h-3 text-emerald-500" /> ACTIVE
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-full">
+                          <Lock className="w-3 h-3 text-slate-400" /> LOCKED
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            </>
           )}
         </div>
       )}

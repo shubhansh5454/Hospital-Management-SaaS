@@ -1,8 +1,9 @@
 import { Response, NextFunction } from 'express';
+import { FeatureFlagService } from '../services/featureFlags.ts';
 import { SaasService } from '../services/saas.ts';
 import { AppError } from './errorHandler.ts';
 
-export function requireFeature(featureKey: 'ai_assistant' | 'laboratory' | 'reports' | 'backup') {
+export function requireFeature(featureKey: 'ai_assistant' | 'laboratory' | 'reports' | 'backup' | 'inventory' | 'telehealth') {
   return async (req: any, res: Response, next: NextFunction) => {
     try {
       const clinicId = req.user?.clinicId;
@@ -10,31 +11,18 @@ export function requireFeature(featureKey: 'ai_assistant' | 'laboratory' | 'repo
         throw new AppError('Forbidden: No active clinic association.', 403);
       }
 
-      const activeSub = await SaasService.getSubscription(clinicId);
-      const planName = activeSub?.planName || 'Free';
+      const isAllowed = await FeatureFlagService.isFeatureEnabled(clinicId, featureKey);
 
-      let allowed = false;
+      if (!isAllowed) {
+        const subscription = await SaasService.getSubscription(clinicId);
+        const planName = subscription?.planName || 'Free';
+        
+        let readableFeatureName = featureKey.replace('_', ' ');
+        readableFeatureName = readableFeatureName.charAt(0).toUpperCase() + readableFeatureName.slice(1);
+        if (featureKey === 'ai_assistant') readableFeatureName = 'AI Clinical Assistant';
 
-      switch (featureKey) {
-        case 'ai_assistant':
-          allowed = ['Professional', 'Enterprise'].includes(planName);
-          break;
-        case 'laboratory':
-          allowed = ['Starter', 'Professional', 'Enterprise'].includes(planName);
-          break;
-        case 'reports':
-          allowed = ['Starter', 'Professional', 'Enterprise'].includes(planName);
-          break;
-        case 'backup':
-          allowed = ['Professional', 'Enterprise'].includes(planName);
-          break;
-        default:
-          allowed = false;
-      }
-
-      if (!allowed) {
         throw new AppError(
-          `Feature limit exceeded: The "${featureKey === 'ai_assistant' ? 'AI Clinical Assistant' : featureKey}" feature is not available on your current "${planName}" plan. Please upgrade your subscription in Settings.`,
+          `Feature limit exceeded: The "${readableFeatureName}" feature is currently disabled or is not available on your "${planName}" plan. Please upgrade your subscription in Settings.`,
           403
         );
       }

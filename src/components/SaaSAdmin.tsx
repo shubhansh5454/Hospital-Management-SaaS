@@ -32,6 +32,9 @@ export default function SaaSAdmin() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Sub-tabs navigation state
+  const [activeSubTab, setActiveSubTab] = useState<'clinics' | 'features'>('clinics');
+
   // New clinic form state
   const [clinicName, setClinicName] = useState('');
   const [clinicSlug, setClinicSlug] = useState('');
@@ -40,6 +43,73 @@ export default function SaaSAdmin() {
   const [clinicAddress, setClinicAddress] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('Free');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+
+  // Tenant override forms state (keyed by feature key)
+  const [tenantOverrideClinicId, setTenantOverrideClinicId] = useState<Record<string, string>>({});
+  const [tenantOverrideValue, setTenantOverrideValue] = useState<Record<string, 'enable' | 'disable' | 'inherit'>>({});
+
+  // Query: Get All Feature Flags
+  const { data: featureFlags = [], isLoading: featuresLoading } = useQuery({
+    queryKey: ['saas-feature-flags'],
+    queryFn: async () => {
+      const res = await fetch('/api/features/admin', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load feature flags');
+      return res.json();
+    },
+    enabled: !!token
+  });
+
+  // Mutation: Update Feature Flag (Global Toggle & Plan settings)
+  const updateFeatureMutation = useMutation({
+    mutationFn: async ({ key, globallyEnabled, plansEnabled }: { key: string; globallyEnabled?: boolean; plansEnabled?: string[] }) => {
+      const res = await fetch(`/api/features/admin/${key}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ globallyEnabled, plansEnabled })
+      });
+      if (!res.ok) throw new Error('Failed to update feature flag');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['saas-feature-flags'] });
+      setSuccessMessage(data.message || 'Feature flag updated successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    },
+    onError: (err: any) => {
+      setErrorMessage(err.message || 'Error updating feature flag');
+      setTimeout(() => setErrorMessage(null), 3000);
+    }
+  });
+
+  // Mutation: Set Tenant Override
+  const setOverrideMutation = useMutation({
+    mutationFn: async ({ key, clinicId, overrideState }: { key: string; clinicId: string; overrideState: boolean | null }) => {
+      const res = await fetch(`/api/features/admin/${key}/override`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ clinicId, overrideState })
+      });
+      if (!res.ok) throw new Error('Failed to save tenant override');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['saas-feature-flags'] });
+      setSuccessMessage(data.message || 'Tenant override saved successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    },
+    onError: (err: any) => {
+      setErrorMessage(err.message || 'Error saving tenant override');
+      setTimeout(() => setErrorMessage(null), 3000);
+    }
+  });
 
   // Query: Get Super Admin Overview Stats
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -180,7 +250,33 @@ export default function SaaSAdmin() {
         </div>
       </div>
 
-      {/* Stats Summary Cards */}
+      {/* Sub-tabs Navigation */}
+      <div className="flex border-b border-slate-200">
+        <button
+          onClick={() => setActiveSubTab('clinics')}
+          className={`px-6 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+            activeSubTab === 'clinics'
+              ? 'border-teal-500 text-teal-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Clinic Directory & Tenants
+        </button>
+        <button
+          onClick={() => setActiveSubTab('features')}
+          className={`px-6 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+            activeSubTab === 'features'
+              ? 'border-teal-500 text-teal-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          SaaS Feature Flags & Control Panel
+        </button>
+      </div>
+
+      {activeSubTab === 'clinics' && (
+        <>
+          {/* Stats Summary Cards */}
       {statsLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map(n => (
@@ -539,6 +635,213 @@ export default function SaaSAdmin() {
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {activeSubTab === 'features' && (
+        <div className="space-y-6">
+          <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-4">
+            <h2 className="text-lg font-display font-bold text-slate-800 flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-teal-600" />
+              <span>Feature Flag & Modular Service Gateways</span>
+            </h2>
+            <p className="text-xs text-slate-400">
+              Control which system modules are active globally, enable or disable features per-subscription plan default, or create forced tenant-specific override parameters.
+            </p>
+          </div>
+
+          {featuresLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(n => (
+                <div key={n} className="h-40 bg-white border border-slate-100 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {featureFlags.map((flag: any) => {
+                const flagPlans = flag.plansEnabled ? flag.plansEnabled.split(',').map((p: string) => p.trim()) : [];
+                let parsedOverrides: Record<string, boolean> = {};
+                try {
+                  parsedOverrides = JSON.parse(flag.tenantOverrides || '{}');
+                } catch {
+                  parsedOverrides = {};
+                }
+
+                return (
+                  <div key={flag.key} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6 hover:shadow-md transition">
+                    {/* Header, Name, Description, and Global Toggle */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-50 pb-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-slate-800 text-sm">{flag.name}</h3>
+                          <span className="font-mono text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">{flag.key}</span>
+                        </div>
+                        <p className="text-xs text-slate-400">{flag.description}</p>
+                      </div>
+
+                      {/* Global Toggle switch */}
+                      <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                        <span className="text-xs font-semibold text-slate-600">Global Activation State:</span>
+                        <button
+                          type="button"
+                          onClick={() => updateFeatureMutation.mutate({
+                            key: flag.key,
+                            globallyEnabled: !flag.globallyEnabled
+                          })}
+                          className={`w-12 h-6.5 rounded-full p-1 transition-all flex items-center cursor-pointer ${
+                            flag.globallyEnabled ? 'bg-teal-500 justify-end' : 'bg-slate-300 justify-start'
+                          }`}
+                        >
+                          <div className="w-4.5 h-4.5 bg-white rounded-full shadow-sm" />
+                        </button>
+                        <span className={`text-[10px] font-bold ${flag.globallyEnabled ? 'text-teal-600' : 'text-slate-400'}`}>
+                          {flag.globallyEnabled ? 'ACTIVE' : 'DISABLED'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Subscription Plan Settings */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-semibold text-slate-600">Plan Default Permissions:</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {['Free', 'Starter', 'Professional', 'Enterprise'].map((plan) => {
+                          const isPlanChecked = flagPlans.includes(plan);
+                          return (
+                            <label
+                              key={plan}
+                              className={`flex items-center gap-3 p-3 rounded-xl border text-xs font-medium cursor-pointer transition ${
+                                isPlanChecked
+                                  ? 'border-teal-500 bg-teal-50/20 text-teal-700 font-bold'
+                                  : 'border-slate-100 bg-slate-50/50 text-slate-500 hover:bg-slate-50'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isPlanChecked}
+                                onChange={() => {
+                                  let newPlans = [...flagPlans];
+                                  if (isPlanChecked) {
+                                    newPlans = newPlans.filter(p => p !== plan);
+                                  } else {
+                                    newPlans.push(plan);
+                                  }
+                                  updateFeatureMutation.mutate({
+                                    key: flag.key,
+                                    plansEnabled: newPlans
+                                  });
+                                }}
+                                className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 border-slate-200 cursor-pointer"
+                              />
+                              <span>{plan} Plan</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Section 3: Tenant Specific Overrides */}
+                    <div className="space-y-3 pt-2">
+                      <h4 className="text-xs font-semibold text-slate-600">Tenant Override Configurations:</h4>
+                      
+                      {/* Form to add override */}
+                      <div className="flex flex-col md:flex-row items-end gap-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                        <div className="space-y-1.5 flex-1 w-full">
+                          <label className="text-[10px] font-semibold text-slate-400">Select Tenant Clinic</label>
+                          <select
+                            value={tenantOverrideClinicId[flag.key] || ''}
+                            onChange={(e) => setTenantOverrideClinicId(prev => ({ ...prev, [flag.key]: e.target.value }))}
+                            className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          >
+                            <option value="">-- Choose Clinic --</option>
+                            {clinics.map((clinic: any) => (
+                              <option key={clinic.id} value={clinic.id.toString()}>
+                                {clinic.name} (/{clinic.slug})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5 w-full md:w-44">
+                          <label className="text-[10px] font-semibold text-slate-400">Override State</label>
+                          <select
+                            value={tenantOverrideValue[flag.key] || 'inherit'}
+                            onChange={(e) => setTenantOverrideValue(prev => ({ ...prev, [flag.key]: e.target.value as any }))}
+                            className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          >
+                            <option value="inherit">Inherit Plan Default</option>
+                            <option value="enable">Force Enable</option>
+                            <option value="disable">Force Disable</option>
+                          </select>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cId = tenantOverrideClinicId[flag.key];
+                            if (!cId) return;
+                            const stateStr = tenantOverrideValue[flag.key] || 'inherit';
+                            const stateVal = stateStr === 'enable' ? true : stateStr === 'disable' ? false : null;
+                            setOverrideMutation.mutate({
+                              key: flag.key,
+                              clinicId: cId,
+                              overrideState: stateVal
+                            });
+                          }}
+                          className="h-9 px-4 bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold rounded-xl flex items-center justify-center shadow-sm cursor-pointer whitespace-nowrap transition"
+                        >
+                          Apply Override
+                        </button>
+                      </div>
+
+                      {/* Display current active overrides */}
+                      {Object.keys(parsedOverrides).length > 0 ? (
+                        <div className="space-y-2 pt-2">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Currently Enforced Overrides</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {Object.entries(parsedOverrides).map(([clinicId, val]) => {
+                              const matchingClinic = clinics.find((c: any) => c.id.toString() === clinicId);
+                              return (
+                                <div key={clinicId} className="flex items-center justify-between border border-slate-100 p-2.5 rounded-xl bg-white text-xs shadow-sm">
+                                  <div>
+                                    <span className="font-semibold text-slate-800">{matchingClinic ? matchingClinic.name : `Clinic ID ${clinicId}`}</span>
+                                    <span className="text-[10px] text-slate-400 block">ID: {clinicId}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                      val 
+                                        ? 'text-emerald-700 bg-emerald-50 border border-emerald-100 font-semibold' 
+                                        : 'text-rose-700 bg-rose-50 border border-rose-100 font-semibold'
+                                    }`}>
+                                      {val ? 'FORCE ENABLED' : 'FORCE DISABLED'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setOverrideMutation.mutate({
+                                        key: flag.key,
+                                        clinicId: clinicId,
+                                        overrideState: null // Deletes override
+                                      })}
+                                      className="text-[10px] text-slate-400 hover:text-rose-600 font-semibold cursor-pointer"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-400 italic">No specific clinic overrides set. All tenants are inheriting plan defaults.</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

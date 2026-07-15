@@ -25,6 +25,7 @@ import { portalRouter } from './portal.ts';
 import { searchRouter } from './search.ts';
 import { settingsRouter } from './settings.ts';
 import { v1Router } from './v1/index.ts';
+import { featureRouter } from './features.ts';
 
 const apiRouter = Router();
 
@@ -83,5 +84,6 @@ apiRouter.use('/portal', portalRouter);
 apiRouter.use('/search', searchRouter);
 apiRouter.use('/settings', settingsRouter);
 apiRouter.use('/v1', v1Router);
+apiRouter.use('/features', featureRouter);
 
 export default apiRouter;

@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext.tsx';
 import { useRealTime } from './RealTimeContext.tsx';
+import { useFeatureFlags } from './FeatureFlagContext.tsx';
 import GlobalSearch from './GlobalSearch.tsx';
 import { 
   HeartPulse, 
@@ -123,7 +124,32 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
   };
 
   const currentRole = profile?.role || 'patient';
-  const visibleMenuItems = menuItems.filter(item => item.roles.includes(currentRole));
+  const { isFeatureEnabled } = useFeatureFlags();
+
+  const featureKeyMap: Record<string, string> = {
+    'laboratory': 'laboratory',
+    'reports': 'reports',
+    'inventory': 'inventory',
+    'ai-assistant': 'ai_assistant',
+    'video-consultation': 'telehealth',
+    'backup': 'backup'
+  };
+
+  const visibleMenuItems = menuItems.filter(item => {
+    // 1. Check role access
+    if (!item.roles.includes(currentRole)) return false;
+
+    // 2. Super admin gets access to everything
+    if (currentRole === 'superadmin') return true;
+
+    // 3. Check if the module is enabled by feature flags
+    const featureKey = featureKeyMap[item.id];
+    if (featureKey) {
+      return isFeatureEnabled(featureKey);
+    }
+
+    return true;
+  });
 
   return (
     <div id="layout_root" className="min-h-screen flex bg-[#f8fafc] font-sans">

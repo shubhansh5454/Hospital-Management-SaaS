@@ -674,6 +674,20 @@ model Tenant {
   @@map("tenants")
 }
 
+model FeatureFlag {
+  id              Int      @id @default(autoincrement())
+  key             String   @unique
+  name            String
+  description     String?
+  globallyEnabled Boolean  @default(true) @map("globally_enabled")
+  plansEnabled    String   @default("Professional,Enterprise") @map("plans_enabled") // comma-separated list of plans
+  tenantOverrides String   @default("{}") @map("tenant_overrides") // JSON string: {"clinicId": true/false}
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("feature_flags")
+}
+
 
 
 

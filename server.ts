@@ -19,6 +19,16 @@ async function startServer() {
   } catch (err) {
     logger.error('Failed to seed standard permissions:', err);
   }
+
+  // Seed standard feature flags
+  try {
+    logger.info('Syncing standard enterprise feature flags in database...');
+    const { FeatureFlagService } = await import('./src/server/services/featureFlags.ts');
+    await FeatureFlagService.seedFeatureFlags();
+    logger.info('Enterprise feature flags synced successfully.');
+  } catch (err) {
+    logger.error('Failed to seed standard feature flags:', err);
+  }
   
   // Basic middlewares
   app.use(express.json());
