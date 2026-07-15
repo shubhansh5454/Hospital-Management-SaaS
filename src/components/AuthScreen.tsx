@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useAuth } from './AuthContext.tsx';
 import { 
@@ -21,6 +22,23 @@ type PatientMode = 'signin' | 'signup' | 'forgot';
 
 export default function AuthScreen() {
   const { loginWithGoogle, loginAsPatient, registerAsPatient, forgotPasswordAsPatient } = useAuth();
+
+  // Query: Fetch public white-label branding details dynamically
+  const { data: publicSettings } = useQuery({
+    queryKey: ['public-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings/public');
+      if (!res.ok) throw new Error('Failed to load public settings');
+      return res.json();
+    }
+  });
+
+  const hospitalName = publicSettings?.hospitalName || 'CareSync';
+  const logoUrl = publicSettings?.logoUrl || '';
+  const primaryColorHex = publicSettings?.primaryColor || '#0d9488';
+  const loginTitleText = publicSettings?.loginTitle || 'Welcome to CareSync';
+  const loginSubtitleText = publicSettings?.loginSubtitle || 'Electronic Health Registry & Patient Portal Suite';
+  const loginBgUrl = publicSettings?.loginBgUrl || '';
   
   const [activeTab, setActiveTab] = useState<AuthTab>('patient');
   const [patientMode, setPatientMode] = useState<PatientMode>('signin');
@@ -98,12 +116,53 @@ export default function AuthScreen() {
   };
 
   return (
-    <div id="auth_container" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-teal-50/30 p-4 font-sans">
+    <div 
+      id="auth_container" 
+      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-teal-50/30 p-4 font-sans relative"
+      style={loginBgUrl ? { backgroundImage: `url(${loginBgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+    >
+      {/* Background Dimmer when custom image is set */}
+      {loginBgUrl && <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs -z-0" />}
+
+      {/* Dynamic White-Label style overrides */}
+      <style>{`
+        .bg-teal-500 {
+          background-color: ${primaryColorHex} !important;
+        }
+        .text-teal-500 {
+          color: ${primaryColorHex} !important;
+        }
+        .text-teal-600 {
+          color: ${primaryColorHex} !important;
+        }
+        .text-teal-700 {
+          color: ${primaryColorHex} !important;
+        }
+        .border-teal-100 {
+          border-color: ${primaryColorHex}25 !important;
+        }
+        .border-teal-500 {
+          border-color: ${primaryColorHex} !important;
+        }
+        .bg-teal-50 {
+          background-color: ${primaryColorHex}12 !important;
+        }
+        .shadow-teal-500\\/10 {
+          box-shadow: 0 4px 6px -1px ${primaryColorHex}20, 0 2px 4px -1px ${primaryColorHex}10 !important;
+        }
+        .focus\\:border-teal-500:focus {
+          border-color: ${primaryColorHex} !important;
+        }
+        .focus\\:ring-teal-500\\/20:focus {
+          --tw-ring-color: ${primaryColorHex}33 !important;
+        }
+      `}</style>
+
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-lg bg-white border border-slate-100 shadow-[0_10px_40px_rgb(0,0,0,0.03)] rounded-3xl p-8 relative overflow-hidden"
+        className="w-full max-w-lg bg-white/95 backdrop-blur-md border border-slate-100 shadow-[0_10px_40px_rgb(0,0,0,0.12)] rounded-3xl p-8 relative overflow-hidden z-10"
       >
         {/* Decorative background blur objects */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl -z-10" />
@@ -111,14 +170,20 @@ export default function AuthScreen() {
 
         {/* Brand Header */}
         <div className="flex flex-col items-center mb-6">
-          <div className="w-12 h-12 bg-teal-500 text-white rounded-2xl flex items-center justify-center mb-3 shadow-md shadow-teal-500/10">
-            <HeartPulse className="w-7 h-7" />
-          </div>
+          {logoUrl ? (
+            <div className="w-16 h-16 bg-white border border-slate-100 rounded-2xl flex items-center justify-center p-2 mb-3 shadow-md">
+              <img src={logoUrl} alt={hospitalName} className="max-h-full max-w-full object-contain" referrerPolicy="no-referrer" />
+            </div>
+          ) : (
+            <div className="w-12 h-12 bg-teal-500 text-white rounded-2xl flex items-center justify-center mb-3 shadow-md shadow-teal-500/10">
+              <HeartPulse className="w-7 h-7" />
+            </div>
+          )}
           <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight text-center">
-            CareSync Portal
+            {loginTitleText}
           </h1>
           <p className="text-xs text-slate-500 mt-1 text-center max-w-sm">
-            Full-Stack Electronic Health Registry & Patient Portal Suite
+            {loginSubtitleText}
           </p>
         </div>
 

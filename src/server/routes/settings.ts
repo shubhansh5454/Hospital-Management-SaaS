@@ -86,6 +86,60 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/settings/public - Retrieve public branding details for a clinic
+router.get('/public', async (req, res) => {
+  try {
+    const { slug, domain } = req.query;
+    let settings = null;
+
+    if (domain) {
+      settings = await prisma.clinicSetting.findFirst({
+        where: { customDomain: String(domain) },
+        include: { clinic: true }
+      });
+    }
+
+    if (!settings && slug) {
+      settings = await prisma.clinicSetting.findFirst({
+        where: { clinic: { slug: String(slug) } },
+        include: { clinic: true }
+      });
+    }
+
+    if (!settings) {
+      // Return default branding
+      return res.status(200).json({
+        hospitalName: 'CareSync',
+        logoUrl: '',
+        primaryColor: '#0d9488',
+        secondaryColor: '#0f172a',
+        loginTitle: 'Welcome to CareSync',
+        loginSubtitle: 'Dynamic EMR & Practice Management Platform',
+        loginBgUrl: '',
+        customDomain: null
+      });
+    }
+
+    return res.status(200).json({
+      hospitalName: settings.hospitalName || settings.clinic.name,
+      logoUrl: settings.logoUrl || '',
+      primaryColor: settings.primaryColor || '#0d9488',
+      secondaryColor: settings.secondaryColor || '#0f172a',
+      loginTitle: settings.loginTitle || `Welcome to ${settings.hospitalName || settings.clinic.name}`,
+      loginSubtitle: settings.loginSubtitle || 'Clinical Practice Management System',
+      loginBgUrl: settings.loginBgUrl || '',
+      customDomain: settings.customDomain || null,
+      emailSenderName: settings.emailSenderName || '',
+      emailFooter: settings.emailFooter || '',
+      pdfHeader: settings.pdfHeader || '',
+      pdfFooter: settings.pdfFooter || ''
+    });
+  } catch (err: any) {
+    console.error('Error in GET /api/settings/public:', err);
+    return res.status(500).json({ error: 'Failed to retrieve public settings' });
+  }
+});
+
 // PUT /api/settings - Update settings for user's clinic (Only accessible by admin or superadmin)
 router.put('/', requireAuth, requireRoles(['admin', 'superadmin']), async (req: AuthRequest, res) => {
   try {
@@ -124,7 +178,18 @@ router.put('/', requireAuth, requireRoles(['admin', 'superadmin']), async (req: 
       waGateway,
       waToken,
       waNumber,
-      waEnabled
+      waEnabled,
+      logoUrl,
+      primaryColor,
+      secondaryColor,
+      customDomain,
+      emailSenderName,
+      emailFooter,
+      pdfHeader,
+      pdfFooter,
+      loginTitle,
+      loginSubtitle,
+      loginBgUrl
     } = req.body;
 
     // Validate and upsert
@@ -160,7 +225,18 @@ router.put('/', requireAuth, requireRoles(['admin', 'superadmin']), async (req: 
         waGateway,
         waToken,
         waNumber,
-        waEnabled: waEnabled !== undefined ? Boolean(waEnabled) : undefined
+        waEnabled: waEnabled !== undefined ? Boolean(waEnabled) : undefined,
+        logoUrl,
+        primaryColor,
+        secondaryColor,
+        customDomain,
+        emailSenderName,
+        emailFooter,
+        pdfHeader,
+        pdfFooter,
+        loginTitle,
+        loginSubtitle,
+        loginBgUrl
       },
       create: {
         clinicId,
@@ -193,7 +269,18 @@ router.put('/', requireAuth, requireRoles(['admin', 'superadmin']), async (req: 
         waGateway: waGateway || '',
         waToken: waToken || '',
         waNumber: waNumber || '',
-        waEnabled: waEnabled !== undefined ? Boolean(waEnabled) : false
+        waEnabled: waEnabled !== undefined ? Boolean(waEnabled) : false,
+        logoUrl: logoUrl || '',
+        primaryColor: primaryColor || '#0d9488',
+        secondaryColor: secondaryColor || '#0f172a',
+        customDomain: customDomain || '',
+        emailSenderName: emailSenderName || '',
+        emailFooter: emailFooter || '',
+        pdfHeader: pdfHeader || '',
+        pdfFooter: pdfFooter || '',
+        loginTitle: loginTitle || '',
+        loginSubtitle: loginSubtitle || '',
+        loginBgUrl: loginBgUrl || ''
       }
     });
 

@@ -653,6 +653,17 @@ model ClinicSetting {
   waToken          String?  @map("wa_token")
   waNumber         String?  @map("wa_number")
   waEnabled        Boolean  @default(false) @map("wa_enabled")
+  logoUrl          String?  @map("logo_url") @db.Text
+  primaryColor     String?  @default("#0d9488") @map("primary_color")
+  secondaryColor   String?  @default("#0f172a") @map("secondary_color")
+  customDomain     String?  @map("custom_domain")
+  emailSenderName  String?  @map("email_sender_name")
+  emailFooter      String?  @map("email_footer") @db.Text
+  pdfHeader        String?  @map("pdf_header") @db.Text
+  pdfFooter        String?  @map("pdf_footer") @db.Text
+  loginTitle       String?  @map("login_title")
+  loginSubtitle    String?  @map("login_subtitle")
+  loginBgUrl       String?  @map("login_bg_url") @db.Text
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
 

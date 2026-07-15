@@ -126,8 +126,21 @@ export default function ClinicSettings() {
   const [waNumber, setWaNumber] = useState('');
   const [waEnabled, setWaEnabled] = useState(false);
 
+  // White-Label Settings State
+  const [logoUrl, setLogoUrl] = useState('');
+  const [primaryColor, setPrimaryColor] = useState('#0d9488');
+  const [secondaryColor, setSecondaryColor] = useState('#0f172a');
+  const [customDomain, setCustomDomain] = useState('');
+  const [emailSenderName, setEmailSenderName] = useState('');
+  const [emailFooter, setEmailFooter] = useState('');
+  const [pdfHeader, setPdfHeader] = useState('');
+  const [pdfFooter, setPdfFooter] = useState('');
+  const [loginTitle, setLoginTitle] = useState('');
+  const [loginSubtitle, setLoginSubtitle] = useState('');
+  const [loginBgUrl, setLoginBgUrl] = useState('');
+
   // Inner tab inside System Settings
-  const [systemActiveTab, setSystemActiveTab] = useState<'info' | 'clinical' | 'timing' | 'billing' | 'comms'>('info');
+  const [systemActiveTab, setSystemActiveTab] = useState<'info' | 'clinical' | 'timing' | 'billing' | 'comms' | 'whitelabel'>('info');
 
   // Query: Fetch system settings
   const { data: systemSettings, isLoading: settingsLoading } = useQuery({
@@ -223,6 +236,18 @@ export default function ClinicSettings() {
       setWaToken(systemSettings.waToken || '');
       setWaNumber(systemSettings.waNumber || '');
       setWaEnabled(!!systemSettings.waEnabled);
+
+      setLogoUrl(systemSettings.logoUrl || '');
+      setPrimaryColor(systemSettings.primaryColor || '#0d9488');
+      setSecondaryColor(systemSettings.secondaryColor || '#0f172a');
+      setCustomDomain(systemSettings.customDomain || '');
+      setEmailSenderName(systemSettings.emailSenderName || '');
+      setEmailFooter(systemSettings.emailFooter || '');
+      setPdfHeader(systemSettings.pdfHeader || '');
+      setPdfFooter(systemSettings.pdfFooter || '');
+      setLoginTitle(systemSettings.loginTitle || '');
+      setLoginSubtitle(systemSettings.loginSubtitle || '');
+      setLoginBgUrl(systemSettings.loginBgUrl || '');
     }
   }, [systemSettings]);
 
@@ -258,7 +283,18 @@ export default function ClinicSettings() {
       waGateway,
       waToken,
       waNumber,
-      waEnabled
+      waEnabled,
+      logoUrl,
+      primaryColor,
+      secondaryColor,
+      customDomain,
+      emailSenderName,
+      emailFooter,
+      pdfHeader,
+      pdfFooter,
+      loginTitle,
+      loginSubtitle,
+      loginBgUrl
     });
   };
 
@@ -1127,6 +1163,16 @@ export default function ClinicSettings() {
                 <Mail className="w-4 h-4" />
                 <span>Notification Settings</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setSystemActiveTab('whitelabel')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition cursor-pointer ${
+                  systemActiveTab === 'whitelabel' ? 'bg-teal-50 text-teal-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>White-Label Branding</span>
+              </button>
             </div>
 
             {/* Config details section */}
@@ -1702,6 +1748,218 @@ export default function ClinicSettings() {
                               disabled={!waEnabled}
                               className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-teal-500 disabled:opacity-50"
                               placeholder="EAAC..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB: White-Label Branding */}
+                  {systemActiveTab === 'whitelabel' && (
+                    <div className="space-y-6 animate-fadeIn text-xs">
+                      <div className="border-b border-slate-50 pb-3">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-teal-600" />
+                          White-Label Branding Controls
+                        </h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Customize client-facing themes, email delivery configurations, PDF reporting headers, and custom domains.</p>
+                      </div>
+
+                      {/* Part 1: Clinic Logo & Visual Theme */}
+                      <div className="p-4 border border-slate-100 bg-slate-50/20 rounded-xl space-y-4">
+                        <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">1. Visual Theme & Colors</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clinic Logo URL</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={logoUrl}
+                                onChange={(e) => setLogoUrl(e.target.value)}
+                                className="flex-1 h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                                placeholder="https://example.com/logo.png"
+                              />
+                              {logoUrl && (
+                                <div className="w-9 h-9 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center border border-slate-200 p-1 shrink-0">
+                                  <img src={logoUrl} alt="Logo preview" className="max-h-full max-w-full object-contain" referrerPolicy="no-referrer" />
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-[9px] text-slate-400">Provide an absolute image URL for your clinic logo. Recommended height is 40px (PNG or SVG).</p>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Custom Domain Name</label>
+                            <input
+                              type="text"
+                              value={customDomain}
+                              onChange={(e) => setCustomDomain(e.target.value)}
+                              className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 transition focus:outline-none focus:border-teal-500"
+                              placeholder="e.g. portal.myclinic.com"
+                            />
+                            <p className="text-[9px] text-slate-400">Point your custom domain's DNS **CNAME** record to your SaaS endpoint to enable fully white-labeled access.</p>
+                          </div>
+
+                          {/* Primary and Secondary Color selections */}
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Primary Brand Color</label>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="color"
+                                value={primaryColor}
+                                onChange={(e) => setPrimaryColor(e.target.value)}
+                                className="w-10 h-10 border border-slate-200 rounded-lg cursor-pointer bg-transparent"
+                              />
+                              <input
+                                type="text"
+                                value={primaryColor}
+                                onChange={(e) => setPrimaryColor(e.target.value)}
+                                className="w-24 h-9 px-2 text-center border border-slate-200 rounded-xl text-xs font-mono uppercase focus:outline-none"
+                              />
+                              <div className="flex gap-1.5 flex-wrap">
+                                {['#0d9488', '#3b82f6', '#10b981', '#f97316', '#6366f1'].map(color => (
+                                  <button
+                                    key={color}
+                                    type="button"
+                                    onClick={() => setPrimaryColor(color)}
+                                    className="w-5 h-5 rounded-full border border-slate-200/80 cursor-pointer shadow-xs transition hover:scale-110"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Secondary Background Color</label>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="color"
+                                value={secondaryColor}
+                                onChange={(e) => setSecondaryColor(e.target.value)}
+                                className="w-10 h-10 border border-slate-200 rounded-lg cursor-pointer bg-transparent"
+                              />
+                              <input
+                                type="text"
+                                value={secondaryColor}
+                                onChange={(e) => setSecondaryColor(e.target.value)}
+                                className="w-24 h-9 px-2 text-center border border-slate-200 rounded-xl text-xs font-mono uppercase focus:outline-none"
+                              />
+                              <div className="flex gap-1.5 flex-wrap">
+                                {['#0f172a', '#1e1b4b', '#064e3b', '#4c1d95', '#18181b'].map(color => (
+                                  <button
+                                    key={color}
+                                    type="button"
+                                    onClick={() => setSecondaryColor(color)}
+                                    className="w-5 h-5 rounded-full border border-slate-200/80 cursor-pointer shadow-xs transition hover:scale-110"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Part 2: Custom Login Portal Branding */}
+                      <div className="p-4 border border-slate-100 bg-slate-50/20 rounded-xl space-y-4">
+                        <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">2. Patient & Staff Login Portal</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Custom Login Welcome Title</label>
+                            <input
+                              type="text"
+                              value={loginTitle}
+                              onChange={(e) => setLoginTitle(e.target.value)}
+                              className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 transition focus:outline-none"
+                              placeholder="e.g. Welcome to CareSync EMR"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Login Subtitle/Description</label>
+                            <input
+                              type="text"
+                              value={loginSubtitle}
+                              onChange={(e) => setLoginSubtitle(e.target.value)}
+                              className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 transition focus:outline-none"
+                              placeholder="e.g. Enter credentials to access patient charts"
+                            />
+                          </div>
+
+                          <div className="space-y-1 md:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Login Background Wallpaper URL</label>
+                            <input
+                              type="text"
+                              value={loginBgUrl}
+                              onChange={(e) => setLoginBgUrl(e.target.value)}
+                              className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 transition focus:outline-none"
+                              placeholder="https://images.unsplash.com/photo-1576091160550-2173dba999ef"
+                            />
+                            {loginBgUrl && (
+                              <div className="mt-2 w-full h-24 bg-slate-100 border border-slate-200 rounded-xl overflow-hidden relative">
+                                <img src={loginBgUrl} alt="Login Background Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                  <span className="text-[10px] text-white font-semibold shadow-sm">Background Live Preview</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Part 3: Custom Email Branding & Footer */}
+                      <div className="p-4 border border-slate-100 bg-slate-50/20 rounded-xl space-y-4">
+                        <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">3. Outgoing Email Branding</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Sender Display Name</label>
+                            <input
+                              type="text"
+                              value={emailSenderName}
+                              onChange={(e) => setEmailSenderName(e.target.value)}
+                              className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 transition focus:outline-none"
+                              placeholder="e.g. CareSync Health System"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Signature / Footer Notice</label>
+                            <input
+                              type="text"
+                              value={emailFooter}
+                              onChange={(e) => setEmailFooter(e.target.value)}
+                              className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 transition focus:outline-none"
+                              placeholder="e.g. This email contains confidential health records. Thank you."
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Part 4: Custom PDF Invoice & Clinical Reports Branding */}
+                      <div className="p-4 border border-slate-100 bg-slate-50/20 rounded-xl space-y-4">
+                        <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">4. Printed PDF Report Templates</h5>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Custom Header Label (Markdown / Rich-Text)</label>
+                            <textarea
+                              value={pdfHeader}
+                              onChange={(e) => setPdfHeader(e.target.value)}
+                              rows={2}
+                              className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 transition focus:outline-none font-mono"
+                              placeholder="e.g. **CARESYNC GENERAL PRACTICE CLINIC**\n100 Health Way, Ste 3A\nPhone: (555) 012-3456"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Custom PDF Footer (Disclaimers / Licensing / Bottom Margin)</label>
+                            <input
+                              type="text"
+                              value={pdfFooter}
+                              onChange={(e) => setPdfFooter(e.target.value)}
+                              className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 transition focus:outline-none"
+                              placeholder="e.g. Standard Medical Prescription under State Act 12. Valid for 30 days."
                             />
                           </div>
                         </div>

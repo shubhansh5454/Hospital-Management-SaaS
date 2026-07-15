@@ -1,4 +1,5 @@
 import { ReactNode, useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './AuthContext.tsx';
 import { useRealTime } from './RealTimeContext.tsx';
 import { useFeatureFlags } from './FeatureFlagContext.tsx';
@@ -44,12 +45,30 @@ interface ToastItem {
 }
 
 export default function Layout({ children, activeTab, setActiveTab }: LayoutProps) {
-  const { profile, logout, updateRoleInProfile, refreshProfile } = useAuth();
+  const { token, profile, logout, updateRoleInProfile, refreshProfile } = useAuth();
   const { isConnected } = useRealTime();
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Query: Fetch system settings to retrieve custom White-Label colors & logo dynamically
+  const { data: systemSettings } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load system settings');
+      return res.json();
+    },
+    enabled: !!token && !!profile?.clinicId
+  });
+
+  const primaryColorHex = systemSettings?.primaryColor || '#0d9488';
+  const secondaryColorHex = systemSettings?.secondaryColor || '#0f172a';
+  const clinicLogo = systemSettings?.logoUrl || '';
+  const clinicName = systemSettings?.hospitalName || 'CareSync';
 
   // Listen for global keyboard shortcut Cmd+K / Ctrl+K
   useEffect(() => {
@@ -153,16 +172,57 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
 
   return (
     <div id="layout_root" className="min-h-screen flex bg-[#f8fafc] font-sans">
+      {/* Dynamic White-Label Brand Style Overrides */}
+      <style>{`
+        .bg-teal-500 {
+          background-color: ${primaryColorHex} !important;
+        }
+        .text-teal-500 {
+          color: ${primaryColorHex} !important;
+        }
+        .text-teal-600 {
+          color: ${primaryColorHex} !important;
+        }
+        .text-teal-700 {
+          color: ${primaryColorHex} !important;
+        }
+        .border-teal-500 {
+          border-color: ${primaryColorHex} !important;
+        }
+        .focus\\:border-teal-500:focus {
+          border-color: ${primaryColorHex} !important;
+        }
+        .bg-teal-50 {
+          background-color: ${primaryColorHex}15 !important;
+        }
+        .text-teal-700.bg-teal-50 {
+          color: ${primaryColorHex} !important;
+          background-color: ${primaryColorHex}1a !important;
+        }
+        .bg-teal-50\\/50 {
+          background-color: ${primaryColorHex}0d !important;
+        }
+        .shadow-teal-500\\/10 {
+          box-shadow: 0 1px 2px 0 ${primaryColorHex}20 !important;
+        }
+      `}</style>
+
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-100 flex flex-col justify-between shadow-[1px_0_10px_rgba(0,0,0,0.01)] shrink-0">
         <div>
           {/* Logo Brand Header */}
           <div className="h-16 border-b border-slate-100 flex items-center px-6 gap-3">
-            <div className="w-8 h-8 bg-teal-500 text-white rounded-lg flex items-center justify-center font-bold shadow-sm">
-              <HeartPulse className="w-5 h-5" />
-            </div>
+            {clinicLogo ? (
+              <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center p-1 border border-slate-100">
+                <img src={clinicLogo} alt={clinicName} className="max-h-full max-w-full object-contain" referrerPolicy="no-referrer" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 bg-teal-500 text-white rounded-lg flex items-center justify-center font-bold shadow-sm">
+                <HeartPulse className="w-5 h-5" />
+              </div>
+            )}
             <div>
-              <span className="font-display font-bold text-slate-800 text-base block tracking-tight">CareSync</span>
+              <span className="font-display font-bold text-slate-800 text-base block truncate max-w-[140px] tracking-tight">{clinicName}</span>
               <span className="text-[10px] text-teal-600 font-semibold uppercase tracking-wider block -mt-1">Clinic SaaS</span>
             </div>
           </div>
