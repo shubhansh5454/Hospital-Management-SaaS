@@ -20,6 +20,7 @@ const Emr = lazy(() => import('./components/Emr.tsx'));
 const Billing = lazy(() => import('./components/Billing.tsx'));
 const Pharmacy = lazy(() => import('./components/Pharmacy.tsx'));
 const Laboratory = lazy(() => import('./components/Laboratory.tsx'));
+const Radiology = lazy(() => import('./components/Radiology.tsx'));
 const Inventory = lazy(() => import('./components/Inventory.tsx'));
 const Notifications = lazy(() => import('./components/Notifications.tsx'));
 const Reports = lazy(() => import('./components/Reports.tsx'));
@@ -118,6 +119,7 @@ function AppContent() {
         {activeTab === 'billing' && <Billing />}
         {activeTab === 'pharmacy' && <Pharmacy />}
         {activeTab === 'laboratory' && <Laboratory />}
+        {activeTab === 'radiology' && <Radiology />}
         {activeTab === 'inventory' && <Inventory />}
         {activeTab === 'notifications' && <Notifications />}
         {activeTab === 'reports' && <Reports />}

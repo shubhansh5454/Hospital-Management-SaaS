@@ -22,11 +22,13 @@ import {
   CheckCircle, 
   XCircle, 
   CreditCard,
-  Droplet
+  Droplet,
+  Scan
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import Radiology from './Radiology.tsx';
 
-type PortalView = 'dashboard' | 'appointments' | 'medical-history' | 'prescriptions' | 'lab-reports' | 'billing' | 'documents' | 'profile' | 'notifications';
+type PortalView = 'dashboard' | 'appointments' | 'medical-history' | 'prescriptions' | 'lab-reports' | 'radiology' | 'billing' | 'documents' | 'profile' | 'notifications';
 
 export default function PatientPortal() {
   const { profile, logout, token } = useAuth();
@@ -433,6 +435,19 @@ export default function PatientPortal() {
             </button>
 
             <button
+              onClick={() => setActiveView('radiology')}
+              className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeView === 'radiology' ? 'bg-teal-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Scan className="w-4 h-4" />
+                <span>Radiology & PACS</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
+
+            <button
               onClick={() => setActiveView('billing')}
               className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 activeView === 'billing' ? 'bg-teal-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -517,6 +532,7 @@ export default function PatientPortal() {
               {activeView === 'medical-history' && 'Clinical Health Timeline'}
               {activeView === 'prescriptions' && 'Active Prescribed Medications'}
               {activeView === 'lab-reports' && 'Diagnostics & Lab Results'}
+              {activeView === 'radiology' && 'My Imaging Studies & PACS'}
               {activeView === 'billing' && 'Invoices & Ledger History'}
               {activeView === 'documents' && 'My Clinical Documents'}
               {activeView === 'profile' && 'Demographics & Profile Editor'}
@@ -1146,6 +1162,13 @@ export default function PatientPortal() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* RADIOLOGY VIEW */}
+            {activeView === 'radiology' && (
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <Radiology isPatient={true} />
               </div>
             )}
 

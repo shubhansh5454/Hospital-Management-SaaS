@@ -32,6 +32,8 @@ model User {
   tenantId      Int?           @map("tenant_id")
   tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   cdsSuggestions AICdsSuggestion[] @relation("DoctorCds")
+  imagingOrders    ImagingOrder[]   @relation("DoctorImagingOrders")
+  radiologyReports RadiologyReport[] @relation("DoctorRadiologyReports")
 
   @@index([clinicId])
   @@index([role])
@@ -61,6 +63,8 @@ model Patient {
   clinic         Clinic?       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   files          ClinicFile[]
   cdsSuggestions AICdsSuggestion[]
+  imagingOrders    ImagingOrder[]
+  radiologyReports RadiologyReport[]
 
   @@index([clinicId])
   @@index([email])
@@ -793,6 +797,53 @@ model AICdsSuggestion {
   @@index([patientId])
   @@index([doctorId])
   @@map("ai_cds_suggestions")
+}
+
+model ImagingOrder {
+  id           Int              @id @default(autoincrement())
+  patientId    Int              @map("patient_id")
+  doctorId     Int              @map("doctor_id")
+  modality     String           // X-RAY, MRI, CT, ULTRASOUND, mammography, etc.
+  bodyPart     String           @map("body_part") // Chest, Head, Lumbar Spine, etc.
+  reason       String           @db.Text
+  status       String           @default("REQUESTED") // REQUESTED, SCHEDULED, ACQUIRED, REPORTED, CANCELLED
+  priority     String           @default("ROUTINE") // ROUTINE, URGENT, STAT
+  orderDate    String           @map("order_date") // YYYY-MM-DD
+  notes        String?          @db.Text
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  
+  patient      Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor       User             @relation("DoctorImagingOrders", fields: [doctorId], references: [id], onDelete: Cascade)
+  reports      RadiologyReport[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@map("imaging_orders")
+}
+
+model RadiologyReport {
+  id             Int          @id @default(autoincrement())
+  orderId        Int          @unique @map("order_id")
+  patientId      Int          @map("patient_id")
+  doctorId       Int          @map("doctor_id") // Doctor/Radiologist who wrote/reviewed
+  findings       String       @db.Text
+  impression     String       @db.Text
+  recommendations String?     @db.Text
+  status         String       @default("DRAFT") // DRAFT, SIGNED_OFF, APPROVED
+  dicomImageUrl  String?      @map("dicom_image_url") // S3, local, or base64 mock URL
+  dicomSeriesUid String?      @map("dicom_series_uid")
+  dicomStudyUid  String?      @map("dicom_study_uid")
+  signerName     String?      @map("signer_name")
+  signedAt       DateTime?    @map("signed_at") @db.Timestamp(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+
+  order          ImagingOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor         User         @relation("DoctorRadiologyReports", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@map("radiology_reports")
 }
 
 
