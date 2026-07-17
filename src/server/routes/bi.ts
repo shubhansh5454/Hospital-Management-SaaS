@@ -11,22 +11,22 @@ const biAuth = [requireAuth, requireRoles(['admin', 'doctor', 'superadmin'])];
 // --- ENDPOINT 1: EXECUTIVE DASHBOARD & FINANCIAL KPIS ---
 router.get('/dashboard-kpis', biAuth, async (req: Request, res: Response) => {
   try {
-    const invoices = await prisma.invoice.findMany({}).catch(() => []);
-    const appointments = await prisma.appointment.findMany({}).catch(() => []);
-    const patients = await prisma.patient.findMany({}).catch(() => []);
-    const doctors = await prisma.doctor.findMany({}).catch(() => []);
-    const medicines = await prisma.medicine.findMany({}).catch(() => []);
+    const invoices = (await prisma.invoice.findMany({}).catch(() => [])) as any[];
+    const appointments = (await prisma.appointment.findMany({}).catch(() => [])) as any[];
+    const patients = (await prisma.patient.findMany({}).catch(() => [])) as any[];
+    const doctors = (await prisma.user.findMany({ where: { role: 'doctor' } }).catch(() => [])) as any[];
+    const medicines = (await prisma.medicine.findMany({}).catch(() => [])) as any[];
 
     // Calculate total revenue from paid/partially paid invoices
-    const totalRevenue = invoices.reduce((sum, inv) => {
-      if (inv.status === 'PAID') return sum + (inv.amount || 0);
-      if (inv.status === 'PARTIALLY_PAID') return sum + ((inv.amount || 0) * 0.5); // estimate half
+    const totalRevenue = invoices.reduce((sum: number, inv) => {
+      if (inv.status === 'PAID') return sum + (inv.totalAmount || 0);
+      if (inv.status === 'PARTIALLY_PAID') return sum + ((inv.totalAmount || 0) * 0.5); // estimate half
       return sum;
     }, 0);
 
-    const outstandingReceivables = invoices.reduce((sum, inv) => {
-      if (inv.status === 'UNPAID') return sum + (inv.amount || 0);
-      if (inv.status === 'PARTIALLY_PAID') return sum + ((inv.amount || 0) * 0.5);
+    const outstandingReceivables = invoices.reduce((sum: number, inv) => {
+      if (inv.status === 'UNPAID') return sum + (inv.totalAmount || 0);
+      if (inv.status === 'PARTIALLY_PAID') return sum + ((inv.totalAmount || 0) * 0.5);
       return sum;
     }, 0);
 
@@ -36,7 +36,7 @@ router.get('/dashboard-kpis', biAuth, async (req: Request, res: Response) => {
     const avgConsultFee = totalRevenue / totalConsultsCount;
 
     // Inventory Valuation
-    const totalInventoryValue = medicines.reduce((sum, med) => sum + ((med.stock || 0) * (med.purchasePrice || 0)), 0);
+    const totalInventoryValue = medicines.reduce((sum: number, med) => sum + ((med.stock || 0) * (med.purchasePrice || 0)), 0);
 
     // Patients served count
     const totalPatientsCount = patients.length;
@@ -101,7 +101,7 @@ router.get('/revenue-analytics', biAuth, async (req: Request, res: Response) => 
 // --- ENDPOINT 3: DOCTOR PERFORMANCE MATRIX ---
 router.get('/doctor-performance', biAuth, async (req: Request, res: Response) => {
   try {
-    const doctors = await prisma.doctor.findMany({}).catch(() => []);
+    const doctors = await prisma.user.findMany({ where: { role: 'doctor' } }).catch(() => []);
     
     // Create rich medical staff utilization analytics
     const specialtyMapping: Record<string, string> = {
