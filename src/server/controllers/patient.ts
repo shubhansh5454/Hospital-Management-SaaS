@@ -53,14 +53,15 @@ export class PatientController {
   /**
    * Get patient by ID
    */
-  public static async getById(req: Request, res: Response, next: NextFunction) {
+  public static async getById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) {
         throw new AppError('Invalid patient ID format', 400);
       }
 
-      const patient = await PatientService.getPatientById(id);
+      const clinicId = req.user?.clinicId;
+      const patient = await PatientService.getPatientById(id, clinicId || undefined);
       res.status(200).json(patient);
     } catch (error) {
       next(error);
@@ -82,7 +83,8 @@ export class PatientController {
         throw new AppError(parsed.error.issues[0].message, 400);
       }
 
-      const updatedPatient = await PatientService.updatePatient(id, parsed.data);
+      const clinicId = req.user?.clinicId;
+      const updatedPatient = await PatientService.updatePatient(id, parsed.data, clinicId || undefined);
 
       // Log audit
       try {
@@ -112,7 +114,8 @@ export class PatientController {
         throw new AppError('Invalid patient ID format', 400);
       }
 
-      const result = await PatientService.deletePatient(id);
+      const clinicId = req.user?.clinicId;
+      const result = await PatientService.deletePatient(id, clinicId || undefined);
 
       // Log audit
       try {
@@ -142,7 +145,8 @@ export class PatientController {
         throw new AppError('Invalid patient ID format', 400);
       }
 
-      const exportedData = await PatientService.exportClinicalData(id);
+      const clinicId = req.user?.clinicId;
+      const exportedData = await PatientService.exportClinicalData(id, clinicId || undefined);
 
       // Log security audit for sensitive patient record access/download (CCDA / FHIR compliance audit trail)
       try {

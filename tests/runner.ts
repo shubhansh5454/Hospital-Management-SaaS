@@ -526,7 +526,7 @@ async function run() {
     const { PatientService } = await import('../src/server/services/patient.ts');
     const { PatientRepository } = await import('../src/server/repositories/patient.ts');
 
-    // Stub findById to return predictable dummy patient data
+    // Stub findById to return predictable dummy patient data with clinicId isolation
     const originalFindById = PatientRepository.findById;
     PatientRepository.findById = async (id: number) => {
       if (id !== 42) return null;
@@ -541,6 +541,7 @@ async function run() {
         address: '742 Evergreen Terrace',
         allergies: 'Penicillin',
         medicalHistory: 'Chronic Hypertension',
+        clinicId: 101, // Isolated in clinic 101
         appointments: [
           {
             id: 1001,
@@ -585,8 +586,22 @@ async function run() {
         threwCorrectly
       );
 
-      // Call exporter with mocked patient ID
-      const result = await PatientService.exportClinicalData(42);
+      // Assert mismatching clinicId triggers BOLA / multi-tenant block with 404
+      let isolatedBlocked = false;
+      try {
+        await PatientService.exportClinicalData(42, 999); // Clinic mismatch
+      } catch (err: any) {
+        if (err.message?.includes('Patient not found')) {
+          isolatedBlocked = true;
+        }
+      }
+      t.assert(
+        'Multi-tenant security block correctly prevents unauthorized clinic access to patient records',
+        isolatedBlocked
+      );
+
+      // Call exporter with matching clinicId
+      const result = await PatientService.exportClinicalData(42, 101);
 
       t.assert(
         'Clinical exporter returns properly structured HL7 FHIR Bundle',

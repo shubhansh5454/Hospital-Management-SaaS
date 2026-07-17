@@ -14,7 +14,7 @@
     *   *Task:* Add structured vitals fields, prescriptions JSON array, and attachment support in Prisma `EmrRecord`. (Priority: High | Status: COMPLETED | Dependencies: None)
 *   **Feature: Enterprise Data Interoperability & Medical Compliance**
     *   *User Story:* As a clinical director, I want to export full patient histories into standard **HL7 FHIR R4 JSON bundles** or **CCDA summaries** to comply with HIPAA inter-operator data transfer laws.
-    *   *Task:* Build backend export service, register `/api/patients/:id/export` routes, and create a high-fidelity Patient Record Export UI tab under Patients screen. (Priority: Critical | Status: IN_PROGRESS | Dependencies: Epic 2 core)
+    *   *Task:* Build backend export service, register `/api/patients/:id/export` routes, and create a high-fidelity Patient Record Export UI tab under Patients screen. (Priority: Critical | Status: COMPLETED | Dependencies: Epic 2 core)
 
 ## Epic 3: Smart Clinical Decision Support (CDS)
 *   **Feature: Gemini-Powered Differential Diagnosis & Drug-Drug Interactions**

@@ -29,9 +29,13 @@ export class PatientService {
   /**
    * Get patient by ID
    */
-  public static async getPatientById(id: number) {
+  public static async getPatientById(id: number, clinicId?: number) {
     const patient = await PatientRepository.findById(id);
     if (!patient) {
+      throw new AppError('Patient not found', 404);
+    }
+    // Enforce tenant isolation for non-superadmins
+    if (clinicId && patient.clinicId && patient.clinicId !== clinicId) {
       throw new AppError('Patient not found', 404);
     }
     return patient;
@@ -40,9 +44,9 @@ export class PatientService {
   /**
    * Update a patient
    */
-  public static async updatePatient(id: number, input: UpdatePatientInput) {
-    // Verify patient exists first
-    await this.getPatientById(id);
+  public static async updatePatient(id: number, input: UpdatePatientInput, clinicId?: number) {
+    // Verify patient exists first and belongs to the same clinic
+    await this.getPatientById(id, clinicId);
 
     return PatientRepository.update(id, input);
   }
@@ -50,9 +54,9 @@ export class PatientService {
   /**
    * Delete a patient
    */
-  public static async deletePatient(id: number) {
-    // Verify patient exists first
-    await this.getPatientById(id);
+  public static async deletePatient(id: number, clinicId?: number) {
+    // Verify patient exists first and belongs to the same clinic
+    await this.getPatientById(id, clinicId);
 
     await PatientRepository.delete(id);
     return { success: true, message: 'Patient successfully deleted' };
@@ -61,8 +65,8 @@ export class PatientService {
   /**
    * Export comprehensive clinical history in standard HL7 FHIR R4 and CCDA formats
    */
-  public static async exportClinicalData(id: number) {
-    const patient = await this.getPatientById(id);
+  public static async exportClinicalData(id: number, clinicId?: number) {
+    const patient = await this.getPatientById(id, clinicId);
     
     // Fetch associated invoices for a complete clinical billing summary
     const { prisma } = await import('../../db/prisma.ts');

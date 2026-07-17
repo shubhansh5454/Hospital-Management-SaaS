@@ -14,3 +14,9 @@
 *   **Context:** Hospital systems require standards-based data portability. Exposing proprietary database JSON structures to third-party providers blocks clinical transfers and breaches HIPAA portability mandates.
 *   **Decision:** Implement standard HL7 FHIR (Fast Healthcare Interoperability Resources) R4 Patient Resource Bundle and CCDA (Continuity of Care Document Architecture) HTML structures as the native clinical export format.
 *   **Consequences:** Absolute compliance with standard healthcare data formats, easy printing/sharing of patient records, and native interoperability with third-party hospital software.
+
+## ADR 4: Strict Clinic Multi-Tenant Isolation for Clinical Data
+*   **Context:** Exposing patient health profiles without strict tenant checks poses a critical data privacy risk (Broken Object Level Authorization - BOLA) in multi-tenant SaaS environments.
+*   **Decision:** Require a valid `clinicId` matching the authenticated user's scope on all patient retrieval, update, delete, and clinical data export operations, falling back to 404 responses to obscure ID enumeration attacks.
+*   **Consequences:** Complete multi-tenant privacy guarantees, prevention of horizontal privilege escalation, and full alignment with HIPAA Security Rule requirements for access control.
+
