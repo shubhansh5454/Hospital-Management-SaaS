@@ -878,7 +878,7 @@ async function run() {
 
     try {
       // Stub notifications to prevent foreign key errors with mock profiles
-      NotificationService.sendNotification = async () => {};
+      NotificationService.sendNotification = async () => [] as any[];
 
       // Mock Doctor and Patient
       UserRepository.findById = async (id: number) => {
@@ -903,14 +903,14 @@ async function run() {
       };
 
       // Mock Create
-      let createCalled = false;
+      let createCalled: any = false;
       AppointmentRepository.create = async (data: any, tx?: any) => {
         createCalled = true;
         return { id: 909, ...data } as any;
       };
 
       // Mock Transaction
-      let transactionCalled = false;
+      let transactionCalled: any = false;
       let transactionIsolationLevel: string | undefined = undefined;
       prisma.$transaction = async (fn: any, options?: any) => {
         transactionCalled = true;
@@ -924,6 +924,7 @@ async function run() {
         date: '2026-07-17',
         time: '10:00',
         reason: 'Regular Checkup',
+        status: 'scheduled' as const,
       };
 
       // Test 1: Successful booking under transaction with Serializable isolation

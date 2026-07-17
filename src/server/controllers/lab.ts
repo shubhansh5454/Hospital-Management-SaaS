@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { LabService } from '../services/lab.ts';
 import { RolesService } from '../services/roles.ts';
+import { AuthRequest } from '../../middleware/auth.ts';
 import {
   createLabTestSchema,
   updateLabTestSchema,
@@ -122,7 +123,7 @@ export class LabController {
   /**
    * Book a lab test order
    */
-  public static async bookTestOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async bookTestOrder(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = bookLabTestSchema.parse(req.body);
       const clinicId = req.user?.clinicId;
@@ -149,7 +150,7 @@ export class LabController {
   /**
    * Fetch lab orders (Sample collection requests & lab reports)
    */
-  public static async listOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async listOrders(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { status, patientId, search } = req.query;
       const filters = {
@@ -168,7 +169,7 @@ export class LabController {
   /**
    * Fetch single order details
    */
-  public static async getOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async getOrder(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = parseInt(req.params.id);
       const clinicId = req.user?.clinicId;
@@ -182,7 +183,7 @@ export class LabController {
   /**
    * Process and log sample collection
    */
-  public static async collectSample(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async collectSample(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = parseInt(req.params.id);
       const validated = collectSampleSchema.parse(req.body);
@@ -214,7 +215,7 @@ export class LabController {
   /**
    * Advance sample state to "IN_PROGRESS"
    */
-  public static async startAnalysis(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async startAnalysis(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = parseInt(req.params.id);
       const clinicId = req.user?.clinicId;
@@ -241,7 +242,7 @@ export class LabController {
   /**
    * Save result findings, validate and complete order
    */
-  public static async finalizeResults(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async finalizeResults(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = parseInt(req.params.id);
       const validated = recordResultSchema.parse(req.body);
@@ -277,7 +278,7 @@ export class LabController {
   /**
    * Retrieve aggregated metrics for the dashboard
    */
-  public static async getMetrics(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public static async getMetrics(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const clinicId = req.user?.clinicId;
       const stats = await LabService.getDashboardMetrics(clinicId);
