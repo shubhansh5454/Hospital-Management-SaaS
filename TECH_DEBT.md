@@ -16,3 +16,8 @@ This document logs identified tech debt, performance bottlenecks, and architectu
 *   **Description:** The BI dashboard fetches and renders all Recharts modules (overview, doctors, patients, inventory) concurrently, causing rendering overhead.
 *   **Impact:** Potential lag/flicker during initial load on weak browsers.
 *   **Remediation:** Implement lazy rendering of charts, so they only mount and render when their parent tab is active.
+
+## 4. Public CDN Dependency in Clinical Document (C-CDA) Printing
+*   **Description:** The print layout generated for the C-CDA clinical summary imports the Tailwind CSS framework dynamically from a public CDN (`cdn.tailwindcss.com`) in the print window's iframe.
+*   **Impact:** In network-isolated, HIPAA-hardened, or strict clinical intranet firewalls common in enterprise hospital groups, the print-out preview might fail to render custom layout structures if outside domains are blocked.
+*   **Remediation:** Inline a self-contained, pre-compiled structural print stylesheet directly in the HTML compiler instead of relying on external scripts.

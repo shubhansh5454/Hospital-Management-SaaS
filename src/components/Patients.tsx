@@ -91,9 +91,22 @@ export default function Patients() {
 
   const handlePrintCcda = () => {
     if (!exportedData) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (!iframeDoc) {
+      alert('Could not open print document.');
+      return;
+    }
+
+    iframeDoc.write(`
       <html>
         <head>
           <title>Continuity of Care Document - ${exportPatient.name}</title>
@@ -105,14 +118,19 @@ export default function Patients() {
           </div>
           <script>
             window.onload = function() {
+              window.focus();
               window.print();
-              setTimeout(() => window.close(), 500);
             };
           </script>
         </body>
       </html>
     `);
-    printWindow.document.close();
+    iframeDoc.close();
+
+    // Remove the iframe after printing is initiated
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
   };
 
   const handleDownloadCcda = () => {

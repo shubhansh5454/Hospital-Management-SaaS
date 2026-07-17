@@ -519,6 +519,116 @@ t.suite('6. Frontend UI Component Health Tests', () => {
 });
 
 // ==========================================
-// EXECUTE RUNNER SUMMARY
+// 7. CLINICAL DATA EXPORT INTEROPERABILITY TESTS
 // ==========================================
-t.printSummary();
+async function run() {
+  await t.suiteAsync('7. Clinical Data Export Interoperability Tests', async () => {
+    const { PatientService } = await import('../src/server/services/patient.ts');
+    const { PatientRepository } = await import('../src/server/repositories/patient.ts');
+
+    // Stub findById to return predictable dummy patient data
+    const originalFindById = PatientRepository.findById;
+    PatientRepository.findById = async (id: number) => {
+      if (id !== 42) return null;
+      return {
+        id: 42,
+        name: 'Johnathan Doe',
+        phone: '555-987-6543',
+        email: 'johndoe@emr.org',
+        gender: 'Male',
+        dob: '1985-05-15',
+        bloodGroup: 'AB+',
+        address: '742 Evergreen Terrace',
+        allergies: 'Penicillin',
+        medicalHistory: 'Chronic Hypertension',
+        appointments: [
+          {
+            id: 1001,
+            date: '2026-07-10',
+            time: '09:30',
+            status: 'Completed',
+            reason: 'Cardiology Follow-up',
+            doctor: { id: 3, name: 'Dr. Gregory House', email: 'house@ppth.org' }
+          }
+        ],
+        emrRecords: [
+          {
+            id: 2001,
+            date: '2026-07-10',
+            diagnosis: 'Essential Hypertension',
+            followUpNotes: 'Check vitals weekly',
+            soapSubjective: 'Patient reports mild fatigue',
+            soapObjective: 'BP 145/95, HR 72',
+            soapPlan: 'Adjust Lisinopril dose',
+            bloodPressure: '145/95',
+            heartRate: '72',
+            temperature: '36.8',
+            oxygenSaturation: '99',
+            doctor: { id: 3, name: 'Dr. Gregory House', email: 'house@ppth.org' }
+          }
+        ]
+      } as any;
+    };
+
+    try {
+      // Assert non-existent patient ID throws correctly
+      let threwCorrectly = false;
+      try {
+        await PatientService.exportClinicalData(9999);
+      } catch (err: any) {
+        if (err.message?.includes('Patient not found')) {
+          threwCorrectly = true;
+        }
+      }
+      t.assert(
+        'Export clinical data fails gracefully for non-existent patient with 404 error',
+        threwCorrectly
+      );
+
+      // Call exporter with mocked patient ID
+      const result = await PatientService.exportClinicalData(42);
+
+      t.assert(
+        'Clinical exporter returns properly structured HL7 FHIR Bundle',
+        result.fhirBundle !== undefined && result.fhirBundle.resourceType === 'Bundle'
+      );
+
+      const patientResource = result.fhirBundle.entry[0].resource as any;
+      t.assert(
+        'FHIR Patient resource maps correct demographics',
+        patientResource.name[0].text === 'Johnathan Doe' &&
+        patientResource.gender === 'male' &&
+        patientResource.birthDate === '1985-05-15'
+      );
+
+      const encounterResource = result.fhirBundle.entry[1].resource as any;
+      t.assert(
+        'FHIR Encounter maps clinic appointment details',
+        encounterResource.resourceType === 'Encounter' &&
+        encounterResource.reasonCode[0].text === 'Cardiology Follow-up'
+      );
+
+      t.assert(
+        'CCDA clinical summary contains patient medical history, allergies, and diagnosis data',
+        result.ccdaSummary.includes('Continuity of Care Document') &&
+        result.ccdaSummary.includes('Johnathan Doe') &&
+        result.ccdaSummary.includes('Penicillin') &&
+        result.ccdaSummary.includes('Essential Hypertension')
+      );
+
+    } finally {
+      // Restore original repository method to guarantee state hygiene
+      PatientRepository.findById = originalFindById;
+    }
+  });
+
+  // ==========================================
+  // EXECUTE RUNNER SUMMARY
+  // ==========================================
+  t.printSummary();
+}
+
+run().catch((err) => {
+  console.error('Test runner execution failed:', err);
+  process.exit(1);
+});
