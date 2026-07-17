@@ -736,6 +736,129 @@ async function run() {
   });
 
   // ==========================================
+  // 9. LABORATORY MULTI-TENANT ISOLATION SECURITY TESTS
+  // ==========================================
+  await t.suiteAsync('9. Laboratory Multi-Tenant Isolation Security Tests', async () => {
+    const { LabService } = await import('../src/server/services/lab.ts');
+    const { LabRepository } = await import('../src/server/repositories/lab.ts');
+    const { PatientRepository } = await import('../src/server/repositories/patient.ts');
+
+    const originalFindOrderById = LabRepository.findOrderById;
+    const originalPatientFindById = PatientRepository.findById;
+    const originalFindTestById = LabRepository.findTestById;
+
+    try {
+      // Mock patient belonging to Clinic A (id: 101)
+      PatientRepository.findById = async (id: number) => {
+        if (id === 505) {
+          return {
+            id: 505,
+            name: 'Jane Smith',
+            clinicId: 101,
+          } as any;
+        }
+        return null;
+      };
+
+      // Mock test definition
+      LabRepository.findTestById = async (id: number) => {
+        if (id === 202) {
+          return {
+            id: 202,
+            name: 'Complete Blood Count',
+            code: 'CBC',
+            category: 'Hematology',
+          } as any;
+        }
+        return null;
+      };
+
+      // Mock lab order belonging to Patient 505 (Clinic A / id: 101)
+      LabRepository.findOrderById = async (id: number) => {
+        if (id === 808) {
+          return {
+            id: 808,
+            patientId: 505,
+            testId: 202,
+            status: 'BOOKED',
+            patient: { id: 505, clinicId: 101 },
+          } as any;
+        }
+        return null;
+      };
+
+      // Mock repository booking
+      const originalBookOrder = LabRepository.bookOrder;
+      LabRepository.bookOrder = async (input: any) => {
+        return { id: 808, ...input } as any;
+      };
+
+      const bookingInput = {
+        patientId: 505,
+        testId: 202,
+        bookingDate: '2026-07-17',
+      };
+
+      // 1. Booking succeeds for matched clinicId
+      try {
+        const order = await LabService.bookTestOrder(bookingInput, 101);
+        t.assert('Book lab test succeeds when clinic ID matches patient clinic ID', order.id === 808);
+      } catch (err) {
+        t.assert('Book lab test succeeds when clinic ID matches patient clinic ID', false);
+      }
+
+      // 2. Booking fails (404 Patient profile not found) for mismatched clinicId
+      let bookBlocked = false;
+      try {
+        await LabService.bookTestOrder(bookingInput, 999);
+      } catch (err: any) {
+        if (err.message?.includes('Patient profile not found')) {
+          bookBlocked = true;
+        }
+      }
+      t.assert('Book lab test fails with 404 error when clinic ID does not match patient clinic ID', bookBlocked);
+
+      // 3. getOrderById succeeds for matched clinicId
+      try {
+        const order = await LabService.getOrderById(808, 101);
+        t.assert('Retrieve lab order succeeds when clinic ID matches order patient clinic ID', order.id === 808);
+      } catch (err) {
+        t.assert('Retrieve lab order succeeds when clinic ID matches order patient clinic ID', false);
+      }
+
+      // 4. getOrderById fails with 404 for mismatched clinicId
+      let getBlocked = false;
+      try {
+        await LabService.getOrderById(808, 999);
+      } catch (err: any) {
+        if (err.message?.includes('Lab order not found')) {
+          getBlocked = true;
+        }
+      }
+      t.assert('Retrieve lab order fails with 404 error when clinic ID does not match order patient clinic ID', getBlocked);
+
+      // 5. Actions fail for mismatched clinicId
+      let collectBlocked = false;
+      try {
+        await LabService.collectSample(808, { barcode: '12345', collector: 'Tech', collectedAt: new Date() }, 999);
+      } catch (err: any) {
+        if (err.message?.includes('Lab order not found')) {
+          collectBlocked = true;
+        }
+      }
+      t.assert('Collect lab sample fails with 404 error when clinic ID does not match order patient clinic ID', collectBlocked);
+
+      // Restore bookOrder mock
+      LabRepository.bookOrder = originalBookOrder;
+
+    } finally {
+      LabRepository.findOrderById = originalFindOrderById;
+      PatientRepository.findById = originalPatientFindById;
+      LabRepository.findTestById = originalFindTestById;
+    }
+  });
+
+  // ==========================================
   // EXECUTE RUNNER SUMMARY
   // ==========================================
   t.printSummary();

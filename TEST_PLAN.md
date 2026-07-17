@@ -27,7 +27,7 @@ npm test
 
 ## 3. Automated Test Suites Structure
 
-The automated test suite in `/tests/runner.ts` is divided into 8 core pillars:
+The automated test suite in `/tests/runner.ts` is divided into 9 core pillars:
 
 ### Suite 1: Security Sanitization Unit Tests
 - **XSS Stripping:** Validates that dangerous scripts (e.g., `<script>`, inline event handlers) are scrubbed or escaped in patient data.
@@ -63,6 +63,11 @@ The automated test suite in `/tests/runner.ts` is divided into 8 core pillars:
 - **Secure Ordering Boundary**: Assures that imaging orders can only be created for patients residing in the clinician's matching clinic domain.
 - **Order Retrieval Isolation**: Checks that retrieval requests for imaging orders fail with a 404 whenever the request origin clinic ID mismatches.
 
+### Suite 9: Laboratory Multi-Tenant Isolation Security Tests
+- **Secure Lab Bookings**: Assures that lab tests can only be booked for patients belonging to the clinician's clinic.
+- **Order Retrieval Isolation**: Validates that laboratory orders can only be fetched by users matching the patient's clinic context.
+- **Safe State Transitions**: Verifies that status updates (sample collection, analysis triggers) are blocked across clinics with precise 404 security barriers.
+
 ---
 
 ## 4. Manual Verification & User Acceptance Testing (UAT)
@@ -76,3 +81,4 @@ To complement the automated suite, manual QA engineers execute standard UAT test
 | **Defensive State Verification** | Trigger export while patient context changes or is unloaded. | Prevents javascript errors gracefully using optional chaining on export triggers. | Passed |
 | **Tenant Switching** | Standard Doctor from Clinic A requests `/api/patients/{id}/export` of Clinic B's patient. | Denied with a clear `404 Patient not found` error, preserving maximum security and tenant privacy. | Passed |
 | **Radiology Order Tenant Cross-Access** | Clinician from Clinic A attempts to retrieve or edit a radiology imaging order of a patient from Clinic B. | Blocked instantly with a clear `404 Radiology order not found` response, preventing cross-tenant access. | Passed |
+| **Laboratory Order Tenant Cross-Access** | Clinician from Clinic A attempts to retrieve, edit, or progress a lab order belonging to Clinic B. | Blocked instantly with a clear `404 Lab order not found` response, preventing BOLA harvesting. | Passed |

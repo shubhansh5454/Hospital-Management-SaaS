@@ -113,13 +113,14 @@ export class LabRepository {
   /**
    * Book a lab test for a patient (Creates LabOrder)
    */
-  public static async bookOrder(data: BookTestInput) {
+  public static async bookOrder(data: BookTestInput & { clinicId?: number }) {
     return prisma.labOrder.create({
       data: {
         patientId: data.patientId,
         testId: data.testId,
         bookingDate: data.bookingDate,
         status: 'BOOKED',
+        clinicId: data.clinicId,
       },
       include: {
         patient: true,
@@ -148,6 +149,7 @@ export class LabRepository {
     status?: string;
     patientId?: number;
     search?: string;
+    clinicId?: number;
   }) {
     const where: any = {};
 
@@ -160,21 +162,30 @@ export class LabRepository {
     }
 
     if (filters.search) {
-      where.OR = [
+      where.AND = [
+        filters.clinicId ? { patient: { clinicId: filters.clinicId } } : {},
         {
-          patient: {
-            name: { contains: filters.search, mode: 'insensitive' },
-          },
-        },
-        {
-          test: {
-            name: { contains: filters.search, mode: 'insensitive' },
-          },
-        },
-        {
-          sampleBarcode: { contains: filters.search, mode: 'insensitive' },
-        },
+          OR: [
+            {
+              patient: {
+                name: { contains: filters.search, mode: 'insensitive' },
+              },
+            },
+            {
+              test: {
+                name: { contains: filters.search, mode: 'insensitive' },
+              },
+            },
+            {
+              sampleBarcode: { contains: filters.search, mode: 'insensitive' },
+            },
+          ]
+        }
       ];
+    } else if (filters.clinicId) {
+      where.patient = {
+        clinicId: filters.clinicId
+      };
     }
 
     return prisma.labOrder.findMany({
@@ -246,12 +257,14 @@ export class LabRepository {
   /**
    * Lab dashboard KPI statistics
    */
-  public static async getLabStats() {
-    const totalOrders = await prisma.labOrder.count();
-    const bookedCount = await prisma.labOrder.count({ where: { status: 'BOOKED' } });
-    const collectedCount = await prisma.labOrder.count({ where: { status: 'SAMPLE_COLLECTED' } });
-    const progressCount = await prisma.labOrder.count({ where: { status: 'IN_PROGRESS' } });
-    const completedCount = await prisma.labOrder.count({ where: { status: 'COMPLETED' } });
+  public static async getLabStats(clinicId?: number) {
+    const whereClause = clinicId ? { patient: { clinicId } } : {};
+
+    const totalOrders = await prisma.labOrder.count({ where: whereClause });
+    const bookedCount = await prisma.labOrder.count({ where: { status: 'BOOKED', ...whereClause } });
+    const collectedCount = await prisma.labOrder.count({ where: { status: 'SAMPLE_COLLECTED', ...whereClause } });
+    const progressCount = await prisma.labOrder.count({ where: { status: 'IN_PROGRESS', ...whereClause } });
+    const completedCount = await prisma.labOrder.count({ where: { status: 'COMPLETED', ...whereClause } });
 
     // Grouping by category
     const categoryCounts = await prisma.labTest.groupBy({
@@ -263,6 +276,7 @@ export class LabRepository {
 
     // Recent orders
     const recentOrders = await prisma.labOrder.findMany({
+      where: whereClause,
       take: 6,
       orderBy: { createdAt: 'desc' },
       include: {

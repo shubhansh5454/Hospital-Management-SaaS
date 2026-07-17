@@ -125,7 +125,8 @@ export class LabController {
   public static async bookTestOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = bookLabTestSchema.parse(req.body);
-      const order = await LabService.bookTestOrder(validated);
+      const clinicId = req.user?.clinicId;
+      const order = await LabService.bookTestOrder(validated, clinicId);
 
       // Log audit
       try {
@@ -156,7 +157,8 @@ export class LabController {
         patientId: typeof patientId === 'string' ? parseInt(patientId) : undefined,
         search: typeof search === 'string' ? search : undefined,
       };
-      const orders = await LabService.getAllOrders(filters);
+      const clinicId = req.user?.clinicId;
+      const orders = await LabService.getAllOrders(filters, clinicId);
       res.json(orders);
     } catch (error) {
       next(error);
@@ -169,7 +171,8 @@ export class LabController {
   public static async getOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = parseInt(req.params.id);
-      const order = await LabService.getOrderById(id);
+      const clinicId = req.user?.clinicId;
+      const order = await LabService.getOrderById(id, clinicId);
       res.json(order);
     } catch (error) {
       next(error);
@@ -183,11 +186,12 @@ export class LabController {
     try {
       const id = parseInt(req.params.id);
       const validated = collectSampleSchema.parse(req.body);
+      const clinicId = req.user?.clinicId;
       const order = await LabService.collectSample(id, {
         barcode: validated.barcode,
         collector: validated.collector,
         collectedAt: new Date(validated.collectedAt),
-      });
+      }, clinicId);
 
       // Log audit
       try {
@@ -213,7 +217,8 @@ export class LabController {
   public static async startAnalysis(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = parseInt(req.params.id);
-      const order = await LabService.startAnalysis(id);
+      const clinicId = req.user?.clinicId;
+      const order = await LabService.startAnalysis(id, clinicId);
 
       // Log audit
       try {
@@ -240,6 +245,7 @@ export class LabController {
     try {
       const id = parseInt(req.params.id);
       const validated = recordResultSchema.parse(req.body);
+      const clinicId = req.user?.clinicId;
       const order = await LabService.completeOrderAndValidate(id, {
         resultValue: validated.resultValue,
         normalRange: validated.normalRange ?? undefined,
@@ -248,7 +254,7 @@ export class LabController {
         reportAttachmentUrl: validated.reportAttachmentUrl ?? undefined,
         validatedBy: validated.validatedBy,
         validatedAt: new Date(),
-      });
+      }, clinicId);
 
       // Log audit
       try {
@@ -273,7 +279,8 @@ export class LabController {
    */
   public static async getMetrics(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const stats = await LabService.getDashboardMetrics();
+      const clinicId = req.user?.clinicId;
+      const stats = await LabService.getDashboardMetrics(clinicId);
       res.json(stats);
     } catch (error) {
       next(error);

@@ -2,6 +2,16 @@
 
 All notable changes to the Hospital ERP SaaS project will be documented in this file.
 
+## [2.3.0] - 2026-07-17
+### Added
+- **Laboratory Multi-Tenant Isolation (BOLA Protection)**: Implemented strict clinic-level logical tenant isolation checks across the Laboratory and sample processing pipelines.
+- **Suite 9 Regression Test Suite**: Integrated an automated integration test suite in `tests/runner.ts` confirming that cross-clinic booking, retrieval, sample collection, and metrics requests are strictly blocked with secure 404/400 errors.
+
+### Changed
+- **Secure Laboratory Controllers**: Enhanced all handlers in `/src/server/controllers/lab.ts` to extract `clinicId` from the request session and propagate it down the call stack.
+- **Tenant-Aware Lab Services**: Refactored `/src/server/services/lab.ts` to enforce tenant validation on booking, listing, retrieving, and processing laboratory orders.
+- **Isolated Lab Repositories**: Modified `/src/server/repositories/lab.ts` to scope database records, count queries, and dashboard KPI metrics exclusively to the client's clinic ID.
+
 ## [2.2.0] - 2026-07-17
 ### Added
 - **Radiology Multi-Tenant Isolation (BOLA Protection)**: Added strict clinic-level logical tenant isolation checks across the Radiology and PACS integration pipelines.

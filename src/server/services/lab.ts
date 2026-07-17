@@ -84,9 +84,13 @@ export class LabService {
   /**
    * Book/order a lab test for a patient
    */
-  public static async bookTestOrder(input: BookTestInput) {
+  public static async bookTestOrder(input: BookTestInput, clinicId?: number) {
     const patient = await PatientRepository.findById(input.patientId);
     if (!patient) {
+      throw new AppError('Patient profile not found', 404);
+    }
+
+    if (clinicId && patient.clinicId && patient.clinicId !== clinicId) {
       throw new AppError('Patient profile not found', 404);
     }
 
@@ -95,35 +99,43 @@ export class LabService {
       throw new AppError('Selected lab test definition not found', 404);
     }
 
-    return LabRepository.bookOrder(input);
+    return LabRepository.bookOrder({ ...input, clinicId });
   }
 
   /**
    * Fetch all lab orders
    */
-  public static async getAllOrders(filters: { status?: string; patientId?: number; search?: string }) {
-    return LabRepository.findAllOrders(filters);
+  public static async getAllOrders(filters: { status?: string; patientId?: number; search?: string }, clinicId?: number) {
+    if (clinicId && filters.patientId) {
+      const patient = await PatientRepository.findById(filters.patientId);
+      if (!patient || (patient.clinicId && patient.clinicId !== clinicId)) {
+        return [];
+      }
+    }
+    return LabRepository.findAllOrders({ ...filters, clinicId });
   }
 
   /**
    * Fetch specific lab order
    */
-  public static async getOrderById(id: number) {
+  public static async getOrderById(id: number, clinicId?: number) {
     const order = await LabRepository.findOrderById(id);
     if (!order) {
       throw new AppError('Lab order not found', 404);
     }
+
+    if (clinicId && order.patient?.clinicId && order.patient.clinicId !== clinicId) {
+      throw new AppError('Lab order not found', 404);
+    }
+
     return order;
   }
 
   /**
    * Record sample collection for a booked order
    */
-  public static async collectSample(id: number, input: CollectSampleInput) {
-    const order = await LabRepository.findOrderById(id);
-    if (!order) {
-      throw new AppError('Lab order not found', 404);
-    }
+  public static async collectSample(id: number, input: CollectSampleInput, clinicId?: number) {
+    const order = await this.getOrderById(id, clinicId);
 
     if (order.status !== 'BOOKED') {
       throw new AppError(`Cannot collect sample. Order is in status ${order.status}`, 400);
@@ -143,11 +155,8 @@ export class LabService {
   /**
    * Transition order to In Progress status
    */
-  public static async startAnalysis(id: number) {
-    const order = await LabRepository.findOrderById(id);
-    if (!order) {
-      throw new AppError('Lab order not found', 404);
-    }
+  public static async startAnalysis(id: number, clinicId?: number) {
+    const order = await this.getOrderById(id, clinicId);
 
     if (order.status !== 'SAMPLE_COLLECTED') {
       throw new AppError(`Cannot start analysis. Order status is ${order.status} (requires SAMPLE_COLLECTED)`, 400);
@@ -159,11 +168,8 @@ export class LabService {
   /**
    * Input lab test findings, perform validation/approval, and finalize
    */
-  public static async completeOrderAndValidate(id: number, input: RecordResultInput) {
-    const order = await LabRepository.findOrderById(id);
-    if (!order) {
-      throw new AppError('Lab order not found', 404);
-    }
+  public static async completeOrderAndValidate(id: number, input: RecordResultInput, clinicId?: number) {
+    const order = await this.getOrderById(id, clinicId);
 
     if (order.status === 'BOOKED') {
       throw new AppError('Cannot fill results before sample has been collected', 400);
@@ -183,7 +189,7 @@ export class LabService {
   /**
    * Get Lab Dashboard Stats
    */
-  public static async getDashboardMetrics() {
-    return LabRepository.getLabStats();
+  public static async getDashboardMetrics(clinicId?: number) {
+    return LabRepository.getLabStats(clinicId);
   }
 }
