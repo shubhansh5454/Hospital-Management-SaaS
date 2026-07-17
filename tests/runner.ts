@@ -638,6 +638,104 @@ async function run() {
   });
 
   // ==========================================
+  // 8. RADIOLOGY MULTI-TENANT ISOLATION SECURITY TESTS
+  // ==========================================
+  await t.suiteAsync('8. Radiology Multi-Tenant Isolation Security Tests', async () => {
+    const { RadiologyService } = await import('../src/server/services/radiology.ts');
+    const { RadiologyRepository } = await import('../src/server/repositories/radiology.ts');
+    const { PatientRepository } = await import('../src/server/repositories/patient.ts');
+
+    const originalFindOrderById = RadiologyRepository.findOrderById;
+    const originalPatientFindById = PatientRepository.findById;
+
+    try {
+      // Mock patient that belongs to Clinic A (id: 101)
+      PatientRepository.findById = async (id: number) => {
+        if (id === 505) {
+          return {
+            id: 505,
+            name: 'Jane Smith',
+            clinicId: 101,
+          } as any;
+        }
+        return null;
+      };
+
+      // Mock order that belongs to Patient 505 (Clinic A / id: 101)
+      RadiologyRepository.findOrderById = async (id: number) => {
+        if (id === 808) {
+          return {
+            id: 808,
+            patientId: 505,
+            patient: { id: 505, clinicId: 101 },
+          } as any;
+        }
+        return null;
+      };
+
+      // 1. Assert order creation succeeds for same clinicId
+      const validOrderInput = {
+        patientId: 505,
+        doctorId: 12,
+        modality: 'MRI',
+        bodyPart: 'Brain',
+        reason: 'Headaches',
+        orderDate: '2026-07-17',
+      };
+
+      // Override repository createOrder to return mocked result
+      const originalCreateOrder = RadiologyRepository.createOrder;
+      RadiologyRepository.createOrder = async (input: any) => {
+        return { id: 808, ...input } as any;
+      };
+
+      try {
+        const createdOrder = await RadiologyService.createOrder(validOrderInput, 101);
+        t.assert('Create order succeeds when clinic ID matches patient clinic ID', createdOrder.id === 808);
+      } catch (err) {
+        t.assert('Create order succeeds when clinic ID matches patient clinic ID', false);
+      }
+
+      // 2. Assert order creation fails (404 Patient not found) for mismatching clinicId (BOLA prevention)
+      let createBlocked = false;
+      try {
+        await RadiologyService.createOrder(validOrderInput, 999); // Clinic mismatch
+      } catch (err: any) {
+        if (err.message?.includes('Patient profile not found')) {
+          createBlocked = true;
+        }
+      }
+      t.assert('Create order fails with 404 error when clinic ID does not match patient clinic ID', createBlocked);
+
+      // 3. Assert getOrderById succeeds for same clinicId
+      try {
+        const order = await RadiologyService.getOrderById(808, 101);
+        t.assert('Retrieve order succeeds when clinic ID matches order patient clinic ID', order.id === 808);
+      } catch (err) {
+        t.assert('Retrieve order succeeds when clinic ID matches order patient clinic ID', false);
+      }
+
+      // 4. Assert getOrderById fails with 404 for mismatching clinicId (BOLA prevention)
+      let getBlocked = false;
+      try {
+        await RadiologyService.getOrderById(808, 999); // Clinic mismatch
+      } catch (err: any) {
+        if (err.message?.includes('Radiology order not found')) {
+          getBlocked = true;
+        }
+      }
+      t.assert('Retrieve order fails with 404 error when clinic ID does not match order patient clinic ID', getBlocked);
+
+      // Restore createOrder mock
+      RadiologyRepository.createOrder = originalCreateOrder;
+
+    } finally {
+      RadiologyRepository.findOrderById = originalFindOrderById;
+      PatientRepository.findById = originalPatientFindById;
+    }
+  });
+
+  // ==========================================
   // EXECUTE RUNNER SUMMARY
   // ==========================================
   t.printSummary();

@@ -6,9 +6,13 @@ export class RadiologyService {
   /**
    * Create a new radiology imaging order
    */
-  public static async createOrder(input: CreateImagingOrderInput) {
+  public static async createOrder(input: CreateImagingOrderInput, clinicId?: number) {
     const patient = await PatientRepository.findById(input.patientId);
     if (!patient) {
+      throw new AppError('Patient profile not found', 404);
+    }
+
+    if (clinicId && patient.clinicId && patient.clinicId !== clinicId) {
       throw new AppError('Patient profile not found', 404);
     }
 
@@ -30,29 +34,40 @@ export class RadiologyService {
   /**
    * Fetch all radiology orders
    */
-  public static async getAllOrders(filters: { patientId?: number; status?: string; search?: string }) {
-    return RadiologyRepository.findAllOrders(filters);
+  public static async getAllOrders(filters: { patientId?: number; status?: string; search?: string }, clinicId?: number) {
+    if (clinicId) {
+      // If patientId is specified, ensure it belongs to the clinic
+      if (filters.patientId) {
+        const patient = await PatientRepository.findById(filters.patientId);
+        if (!patient || (patient.clinicId && patient.clinicId !== clinicId)) {
+          return [];
+        }
+      }
+    }
+    return RadiologyRepository.findAllOrders({ ...filters, clinicId });
   }
 
   /**
    * Fetch specific radiology order
    */
-  public static async getOrderById(id: number) {
+  public static async getOrderById(id: number, clinicId?: number) {
     const order = await RadiologyRepository.findOrderById(id);
     if (!order) {
       throw new AppError('Radiology order not found', 404);
     }
+
+    if (clinicId && order.patient?.clinicId && order.patient.clinicId !== clinicId) {
+      throw new AppError('Radiology order not found', 404);
+    }
+
     return order;
   }
 
   /**
    * Update order status
    */
-  public static async updateOrderStatus(id: number, status: string) {
-    const order = await RadiologyRepository.findOrderById(id);
-    if (!order) {
-      throw new AppError('Radiology order not found', 404);
-    }
+  public static async updateOrderStatus(id: number, status: string, clinicId?: number) {
+    await this.getOrderById(id, clinicId);
     return RadiologyRepository.updateOrderStatus(id, status);
   }
 
@@ -60,11 +75,8 @@ export class RadiologyService {
    * Acquire Image / Associate DICOM metadata with Order
    * (Simulates the work done by a PACS acquisition modality)
    */
-  public static async acquireImage(id: number, dicomData: { imageUrl: string; seriesUid?: string; studyUid?: string }) {
-    const order = await RadiologyRepository.findOrderById(id);
-    if (!order) {
-      throw new AppError('Radiology order not found', 404);
-    }
+  public static async acquireImage(id: number, dicomData: { imageUrl: string; seriesUid?: string; studyUid?: string }, clinicId?: number) {
+    const order = await this.getOrderById(id, clinicId);
 
     // Generate random series/study UIDs if not provided
     const seriesUid = dicomData.seriesUid || `1.2.840.113619.2.${Math.floor(Math.random() * 100000000)}`;
@@ -90,11 +102,8 @@ export class RadiologyService {
   /**
    * Save report as Draft or Sign-Off
    */
-  public static async saveReport(orderId: number, input: { findings: string; impression: string; recommendations?: string; status?: string; doctorId: number }) {
-    const order = await RadiologyRepository.findOrderById(orderId);
-    if (!order) {
-      throw new AppError('Radiology order not found', 404);
-    }
+  public static async saveReport(orderId: number, input: { findings: string; impression: string; recommendations?: string; status?: string; doctorId: number }, clinicId?: number) {
+    const order = await this.getOrderById(orderId, clinicId);
 
     const reportStatus = input.status || 'DRAFT';
 
@@ -119,11 +128,8 @@ export class RadiologyService {
   /**
    * Clinician / Radiologist Report Approval
    */
-  public static async approveReport(orderId: number, approverId: number, approverName: string) {
-    const order = await RadiologyRepository.findOrderById(orderId);
-    if (!order) {
-      throw new AppError('Radiology order not found', 404);
-    }
+  public static async approveReport(orderId: number, approverId: number, approverName: string, clinicId?: number) {
+    const order = await this.getOrderById(orderId, clinicId);
 
     const report = await RadiologyRepository.findReportByOrderId(orderId);
     if (!report) {
@@ -152,18 +158,32 @@ export class RadiologyService {
   /**
    * Fetch specific report by order ID
    */
-  public static async getReportByOrderId(orderId: number) {
+  public static async getReportByOrderId(orderId: number, clinicId?: number) {
     const report = await RadiologyRepository.findReportByOrderId(orderId);
     if (!report) {
       throw new AppError('Radiology report not found for this order', 404);
     }
+
+    if (clinicId && report.patient?.clinicId && report.patient.clinicId !== clinicId) {
+      throw new AppError('Radiology report not found for this order', 404);
+    }
+
     return report;
   }
 
   /**
    * Fetch reports history for a specific patient
    */
-  public static async getPatientHistory(patientId: number) {
+  public static async getPatientHistory(patientId: number, clinicId?: number) {
+    const patient = await PatientRepository.findById(patientId);
+    if (!patient) {
+      throw new AppError('Patient profile not found', 404);
+    }
+
+    if (clinicId && patient.clinicId && patient.clinicId !== clinicId) {
+      throw new AppError('Patient profile not found', 404);
+    }
+
     return RadiologyRepository.findReportsByPatientId(patientId);
   }
 }

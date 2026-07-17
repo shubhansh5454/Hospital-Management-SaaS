@@ -27,7 +27,7 @@ npm test
 
 ## 3. Automated Test Suites Structure
 
-The automated test suite in `/tests/runner.ts` is divided into 7 core pillars:
+The automated test suite in `/tests/runner.ts` is divided into 8 core pillars:
 
 ### Suite 1: Security Sanitization Unit Tests
 - **XSS Stripping:** Validates that dangerous scripts (e.g., `<script>`, inline event handlers) are scrubbed or escaped in patient data.
@@ -59,6 +59,10 @@ The automated test suite in `/tests/runner.ts` is divided into 7 core pillars:
 - **C-CDA Generation:** Inspects generated clinical Continuity of Care Documents for matching histories, allergies, and diagnoses.
 - **Clinic Multi-Tenant Isolation:** Verifies BOLA protection where a user bound to one clinic context is blocked from fetching or exporting records belonging to another clinic ID.
 
+### Suite 8: Radiology Multi-Tenant Isolation Security Tests
+- **Secure Ordering Boundary**: Assures that imaging orders can only be created for patients residing in the clinician's matching clinic domain.
+- **Order Retrieval Isolation**: Checks that retrieval requests for imaging orders fail with a 404 whenever the request origin clinic ID mismatches.
+
 ---
 
 ## 4. Manual Verification & User Acceptance Testing (UAT)
@@ -71,3 +75,4 @@ To complement the automated suite, manual QA engineers execute standard UAT test
 | **Download Patient History** | Click *Download FHIR Bundle* or *Download CCDA*. | Generates a valid file download stream with appropriate JSON or HTML mime-types. | Passed |
 | **Defensive State Verification** | Trigger export while patient context changes or is unloaded. | Prevents javascript errors gracefully using optional chaining on export triggers. | Passed |
 | **Tenant Switching** | Standard Doctor from Clinic A requests `/api/patients/{id}/export` of Clinic B's patient. | Denied with a clear `404 Patient not found` error, preserving maximum security and tenant privacy. | Passed |
+| **Radiology Order Tenant Cross-Access** | Clinician from Clinic A attempts to retrieve or edit a radiology imaging order of a patient from Clinic B. | Blocked instantly with a clear `404 Radiology order not found` response, preventing cross-tenant access. | Passed |

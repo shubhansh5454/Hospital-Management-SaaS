@@ -15,6 +15,9 @@
 *   **Feature: Enterprise Data Interoperability & Medical Compliance**
     *   *User Story:* As a clinical director, I want to export full patient histories into standard **HL7 FHIR R4 JSON bundles** or **CCDA summaries** to comply with HIPAA inter-operator data transfer laws.
     *   *Task:* Build backend export service, register `/api/patients/:id/export` routes, and create a high-fidelity Patient Record Export UI tab under Patients screen. (Priority: Critical | Status: COMPLETED | Dependencies: Epic 2 core)
+*   **Feature: Radiology & PACS System Multi-Tenant Security Isolation (BOLA Protection)**
+    *   *User Story:* As a clinic director, I want all imaging orders, acquired DICOM assets, and radiology report drafting services to enforce strict multi-tenant boundary checks so that other clinic tenants cannot access or tamper with our scans.
+    *   *Task:* Implement clinic ID context validation across the Radiology controller, service, and repository layers, and author regression test suites confirming full BOLA prevention. (Priority: High | Status: COMPLETED | Dependencies: Epic 2 core)
 
 ## Epic 3: Smart Clinical Decision Support (CDS)
 *   **Feature: Gemini-Powered Differential Diagnosis & Drug-Drug Interactions**

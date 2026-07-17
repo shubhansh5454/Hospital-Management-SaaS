@@ -2,6 +2,17 @@
 
 All notable changes to the Hospital ERP SaaS project will be documented in this file.
 
+## [2.2.0] - 2026-07-17
+### Added
+- **Radiology Multi-Tenant Isolation (BOLA Protection)**: Added strict clinic-level logical tenant isolation checks across the Radiology and PACS integration pipelines.
+- **Suite 8 Regression Test Suite**: Added a robust, automated async integration test suite in `tests/runner.ts` validating successful intra-clinic orders and secure 404 blockages for cross-clinic imaging order manipulations.
+- **Unified ERP System Documentation**: Provisioned and documented complete, industry-standard SaaS operational archives including `PROJECT_VISION.md`, `PRODUCT_REQUIREMENTS.md`, `PRODUCT_ROADMAP.md`, `SPRINT_BACKLOG.md`, `ARCHITECTURE.md`, `DATABASE.md`, `API.md`, and `SECURITY.md` files.
+
+### Changed
+- **Secure Radiology Controllers**: Modified all methods in `/src/server/controllers/radiology.ts` to extract the caller's session `clinicId` and enforce authorization down the logic stack.
+- **Safe Radiology Repositories**: Enhanced database query filtering in `/src/server/repositories/radiology.ts` to restrict order queries to patient.clinicId scopes matching the request origin.
+- **Improved Radiology Services**: Parameterized all CRUD and state-machine transitions in `/src/server/services/radiology.ts` to block unauthorized read/write access.
+
 ## [2.1.0] - 2026-07-17
 ### Added
 - **Interoperability & Data Portability Engine**: Built backend FHIR (Fast Healthcare Interoperability Resources) R4 JSON bundle generation and high-fidelity CCDA HTML report summarization for complete patient clinical histories.

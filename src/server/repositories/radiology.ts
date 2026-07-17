@@ -75,9 +75,9 @@ export class RadiologyRepository {
   }
 
   /**
-   * Find all imaging orders with optional patientId or search filters
+   * Find all imaging orders with optional patientId, search, or clinicId filters
    */
-  public static async findAllOrders(filters: { patientId?: number; status?: string; search?: string }) {
+  public static async findAllOrders(filters: { patientId?: number; status?: string; search?: string; clinicId?: number }) {
     const where: any = {};
 
     if (filters.patientId) {
@@ -89,16 +89,25 @@ export class RadiologyRepository {
     }
 
     if (filters.search) {
-      where.OR = [
-        { modality: { contains: filters.search, mode: 'insensitive' } },
-        { bodyPart: { contains: filters.search, mode: 'insensitive' } },
-        { reason: { contains: filters.search, mode: 'insensitive' } },
+      where.AND = [
+        filters.clinicId ? { patient: { clinicId: filters.clinicId } } : {},
         {
-          patient: {
-            name: { contains: filters.search, mode: 'insensitive' },
-          },
-        },
+          OR: [
+            { modality: { contains: filters.search, mode: 'insensitive' } },
+            { bodyPart: { contains: filters.search, mode: 'insensitive' } },
+            { reason: { contains: filters.search, mode: 'insensitive' } },
+            {
+              patient: {
+                name: { contains: filters.search, mode: 'insensitive' },
+              },
+            },
+          ]
+        }
       ];
+    } else if (filters.clinicId) {
+      where.patient = {
+        clinicId: filters.clinicId
+      };
     }
 
     return prisma.imagingOrder.findMany({

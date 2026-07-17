@@ -23,5 +23,6 @@ This document logs identified tech debt, performance bottlenecks, and architectu
 *   **Remediation:** Inline a self-contained, pre-compiled structural print stylesheet directly in the HTML compiler instead of relying on external scripts.
 
 ## 5. Completed Reviews & Safe Defences (Refined July 2026)
-*   **Status:** Resolved. Addressed potential asynchronous state race conditions in `Patients.tsx` where clinical export records may be triggered on undefined/changing states, securing client-server state continuity.
+*   **Asynchronous State Race Conditions**: Resolved. Addressed potential asynchronous state race conditions in `Patients.tsx` where clinical export records may be triggered on undefined/changing states, securing client-server state continuity.
+*   **Radiology PACS BOLA Vulnerability**: Resolved. Hardened the imaging order pipeline to prevent cross-tenant security issues. Fully parameterized all controller, service, and repository layers to enforce clinic-level logical tenant isolation checks, validated by integration test Suite 8.
 

@@ -21,6 +21,7 @@ export class RadiologyController {
     try {
       const { patientId, modality, bodyPart, reason, priority, orderDate, notes } = req.body;
       const doctorId = req.user?.id || 1; // Fallback for test sandbox
+      const clinicId = req.user?.clinicId;
 
       if (!patientId) {
         throw new AppError('patientId is required', 400);
@@ -35,7 +36,7 @@ export class RadiologyController {
         priority,
         orderDate: orderDate || new Date().toISOString().split('T')[0],
         notes,
-      });
+      }, clinicId || undefined);
 
       // Audit Log
       try {
@@ -61,6 +62,7 @@ export class RadiologyController {
   public static async listOrders(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { patientId, status, search } = req.query;
+      const clinicId = req.user?.clinicId;
       
       const filters = {
         patientId: patientId ? Number(patientId) : undefined,
@@ -68,7 +70,7 @@ export class RadiologyController {
         search: typeof search === 'string' ? search : undefined,
       };
 
-      const orders = await RadiologyService.getAllOrders(filters);
+      const orders = await RadiologyService.getAllOrders(filters, clinicId || undefined);
       res.json(orders);
     } catch (error) {
       next(error);
@@ -81,7 +83,8 @@ export class RadiologyController {
   public static async getOrder(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = parseInt(req.params.id);
-      const order = await RadiologyService.getOrderById(id);
+      const clinicId = req.user?.clinicId;
+      const order = await RadiologyService.getOrderById(id, clinicId || undefined);
       res.json(order);
     } catch (error) {
       next(error);
@@ -95,12 +98,13 @@ export class RadiologyController {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
+      const clinicId = req.user?.clinicId;
 
       if (!status) {
         throw new AppError('Status value is required', 400);
       }
 
-      const updatedOrder = await RadiologyService.updateOrderStatus(id, status);
+      const updatedOrder = await RadiologyService.updateOrderStatus(id, status, clinicId || undefined);
       res.json(updatedOrder);
     } catch (error) {
       next(error);
@@ -114,6 +118,7 @@ export class RadiologyController {
     try {
       const id = parseInt(req.params.id);
       const { imageUrl, seriesUid, studyUid } = req.body;
+      const clinicId = req.user?.clinicId;
 
       if (!imageUrl) {
         throw new AppError('dicomImageUrl / imageUrl is required', 400);
@@ -123,7 +128,7 @@ export class RadiologyController {
         imageUrl,
         seriesUid,
         studyUid,
-      });
+      }, clinicId || undefined);
 
       // Audit Log
       try {
@@ -151,6 +156,7 @@ export class RadiologyController {
       const orderId = parseInt(req.params.id);
       const { findings, impression, recommendations, status } = req.body;
       const doctorId = req.user?.id || 1;
+      const clinicId = req.user?.clinicId;
 
       if (findings === undefined || impression === undefined) {
         throw new AppError('Findings and Impression fields are required to draft/save report', 400);
@@ -162,7 +168,7 @@ export class RadiologyController {
         recommendations,
         status: status || 'DRAFT',
         doctorId,
-      });
+      }, clinicId || undefined);
 
       // Audit Log
       try {
@@ -189,8 +195,9 @@ export class RadiologyController {
       const orderId = parseInt(req.params.id);
       const approverId = req.user?.id || 1;
       const approverName = req.user?.name || 'Systems Admin';
+      const clinicId = req.user?.clinicId;
 
-      const approvedReport = await RadiologyService.approveReport(orderId, approverId, approverName);
+      const approvedReport = await RadiologyService.approveReport(orderId, approverId, approverName, clinicId || undefined);
 
       // Audit Log
       try {
@@ -215,7 +222,8 @@ export class RadiologyController {
   public static async getReport(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const orderId = parseInt(req.params.id);
-      const report = await RadiologyService.getReportByOrderId(orderId);
+      const clinicId = req.user?.clinicId;
+      const report = await RadiologyService.getReportByOrderId(orderId, clinicId || undefined);
       res.json(report);
     } catch (error) {
       next(error);
@@ -228,7 +236,8 @@ export class RadiologyController {
   public static async getHistory(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const patientId = parseInt(req.params.patientId);
-      const history = await RadiologyService.getPatientHistory(patientId);
+      const clinicId = req.user?.clinicId;
+      const history = await RadiologyService.getPatientHistory(patientId, clinicId || undefined);
       res.json(history);
     } catch (error) {
       next(error);
@@ -241,7 +250,8 @@ export class RadiologyController {
   public static async generateAiReport(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const orderId = parseInt(req.params.id);
-      const order = await RadiologyService.getOrderById(orderId);
+      const clinicId = req.user?.clinicId;
+      const order = await RadiologyService.getOrderById(orderId, clinicId || undefined);
       
       const prompt = `
 You are an expert board-certified Radiologist. Draft a comprehensive, professional, structured radiology report for the following imaging order:
