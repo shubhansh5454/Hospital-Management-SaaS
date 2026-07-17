@@ -13,8 +13,8 @@ Below are the macro-level strategic goals (Epics) that drive the development of 
 | **EP-01** | Zero-Trust SaaS Core & Authentication | Secure, high-performance, and multi-tenant foundation supporting strict tenant-level data isolation, secure authentication, and global RBAC. | Phase 1 (v1.0) | **Done** |
 | **EP-02** | Core Patient Clinical Journey (EMR, SOAP, & Prescriptions) | Clinical management system enabling medical personnel to handle patient intake, record structured consult histories, and order electronic scripts safely. | Phase 2 (v2.0) | **Done** |
 | **EP-03** | Clinical Ancillaries & PACS Modality (Labs, Pharmacy, Radiology) | Operational execution hubs supporting laboratory sample management, pharmacy stock/expirations, and radiology PACS/DICOM imaging flows. | Phase 3 (v2.2) | **Done** |
-| **EP-04** | Commercialization & Financial Subsystems (Billing, HR, Inventory) | Operational workflows focusing on tenant monetization, comprehensive medical billing, hospital staffing/HR records, and clinical product inventories. | Phase 4 (v2.3) | **In Progress** |
-| **EP-05** | Decision Support, Automated Intelligence, & Integrations | Deep integration with advanced server-side LLMs for clinical guidance, alongside HL7 FHIR and CCDA healthcare interoperability. | Phase 4 (v2.4) | **In Progress** |
+| **EP-04** | Commercialization & Financial Subsystems (Billing, HR, Inventory) | Operational workflows focusing on tenant monetization, comprehensive medical billing, hospital staffing/HR records, and clinical product inventories. | Phase 4 (v2.3) | **Done** |
+| **EP-05** | Decision Support, Automated Intelligence, & Integrations | Deep integration with advanced server-side LLMs for clinical guidance, alongside HL7 FHIR and CCDA healthcare interoperability. | Phase 4 (v2.4) | **Done** |
 | **EP-06** | Real-Time Operational Infrastructure, Telemetry, & Analytics | Multi-user low-latency WebSockets, advanced business intelligence dashboards, real-time alerts, and performance metrics. | Phase 5 (v3.0) | **Todo** |
 
 ---
@@ -99,7 +99,7 @@ These are the system features derived from the Epics, sorted strictly by impleme
   1. Generates structured, downloadable invoices listing line-items with VAT and tax details.
   2. Tracks co-pay values, outstanding debt, and logs payment methods.
   3. Integrates with regional billing/insurance lookup profiles.
-* **Status**: In Progress
+* **Status**: Done
 
 ### [FEAT-501] Interoperable Medical Data Export (FHIR R4 & C-CDA)
 * **Epic ID**: EP-05
@@ -138,7 +138,7 @@ These are the system features derived from the Epics, sorted strictly by impleme
   1. Tracks SKU quantities dynamically as prescriptions are filled.
   2. Displays clear high-visibility visual badges for products expiring within 30 days.
   3. Sends automated email notifications to administrators for restocking.
-* **Status**: Todo
+* **Status**: Done
 
 ### [FEAT-403] Human Resources (HR) & Clinician Scheduling
 * **Epic ID**: EP-04
@@ -151,7 +151,7 @@ These are the system features derived from the Epics, sorted strictly by impleme
   1. Clinic administrators can define shift slots per physician.
   2. Schedule booking forms block appointment selection outside defined shift intervals.
   3. Prevents overlapping shift assignments for the same clinician.
-* **Status**: Todo
+* **Status**: Done
 
 ### [FEAT-601] Business Intelligence & Telemetry Analytics Dashboard
 * **Epic ID**: EP-06
@@ -267,7 +267,7 @@ Detailed agile user stories mapping real-world business expectations to clinical
   1. Billing screen aggregates all unbilled items associated with a patient encounter.
   2. Applies relevant tax calculations, and accepts cash, card, or insurance details.
   3. Marks the invoice as `PAID` or `PARTIALLY_PAID` in the financial ledger.
-* **Status**: In Progress
+* **Status**: Done
 
 ### [US-501] Automated Drug Interaction Checking
 * **User Story**: As a Prescribing Doctor, I want the system to alert me of any dangerous drug interactions or patient allergies when I write a prescription to ensure patient safety.

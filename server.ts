@@ -65,6 +65,16 @@ async function startServer() {
   // Mount clean, modular API routes under /api prefix
   app.use('/api', apiRouter);
 
+  // 404 Handler for all unmatched /api routes to prevent falling through to SPA fallback (HTML)
+  app.all('/api/*', (req, res) => {
+    logger.warn(`[API Gateway] 404 Route Not Found: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({
+      status: 'error',
+      statusCode: 404,
+      message: `API Route not found: ${req.method} ${req.originalUrl}`
+    });
+  });
+
   // Vite development or production static asset server setup
   if (env.NODE_ENV !== 'production') {
     logger.info('Initializing Vite middleware in development mode...');

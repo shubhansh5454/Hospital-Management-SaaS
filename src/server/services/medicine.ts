@@ -1,6 +1,7 @@
 import { MedicineRepository, CreateMedicineInput, PurchaseMedicineInput, SaleMedicineInput } from '../repositories/medicine.ts';
 import { PatientRepository } from '../repositories/patient.ts';
 import { AppError } from '../middleware/errorHandler.ts';
+import { NotificationService } from './notification.ts';
 
 export class MedicineService {
   /**
@@ -119,7 +120,7 @@ export class MedicineService {
     }
 
     if (input.quantity <= 0) {
-      throw new AppError('Quantity sold must be greater than 0', 400);
+       throw new AppError('Quantity sold must be greater than 0', 400);
     }
 
     // Verify patient profile if linked
@@ -136,7 +137,24 @@ export class MedicineService {
       throw new AppError('This medicine has expired! Selling expired products is prohibited.', 400);
     }
 
-    return MedicineRepository.recordSale(input);
+    const sale = await MedicineRepository.recordSale(input);
+
+    // Dynamic stock-level check for restocking triggers
+    try {
+      const updatedMed = await MedicineRepository.findById(input.medicineId);
+      if (updatedMed && updatedMed.stock <= updatedMed.minStockAlert) {
+        await NotificationService.sendNotification({
+          title: `⚠️ Pharmacy Low Stock Alert: ${updatedMed.name}`,
+          message: `The pharmacy stock level for ${updatedMed.name} (${updatedMed.code}) has dropped to ${updatedMed.stock} units, which is below the minimum safety threshold of ${updatedMed.minStockAlert} units. Please authorize restocking immediately.`,
+          type: 'GENERAL',
+          channels: ['EMAIL', 'IN_APP']
+        });
+      }
+    } catch (err) {
+      console.error('Failed to trigger automatic pharmacy low stock restocking alert:', err);
+    }
+
+    return sale;
   }
 
   /**

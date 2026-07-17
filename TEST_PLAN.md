@@ -73,6 +73,12 @@ The automated test suite in `/tests/runner.ts` is divided into 9 core pillars:
 - **Strict Isolation**: Confirms that database operations utilize the `Serializable` isolation level to block overlapping bookings.
 - **Concurrency Serialization Conflict Mapping**: Asserts that db serialization failures (Prisma error `P2034`) are gracefully mapped to user-friendly messages rather than crashing the system.
 
+### Suite 11: Pharmacy Inventory & Low-Stock Restocking Alerts Tests
+- **Sale Record Success**: Asserts that medicine stock transactions log successfully in the ledger.
+- **Threshold Triggers**: Verifies that when post-transaction stock is less than or equal to `minStockAlert`, the notification engine is fired.
+- **Content Accuracy**: Confirms that warning notifications list precise medicine details, remaining units, and supplier call-to-actions.
+- **Channel Routing**: Asserts that alerts are targeted simultaneously to EMAIL and IN_APP administrator queues.
+
 ---
 
 ## 4. Manual Verification & User Acceptance Testing (UAT)
@@ -88,3 +94,4 @@ To complement the automated suite, manual QA engineers execute standard UAT test
 | **Radiology Order Tenant Cross-Access** | Clinician from Clinic A attempts to retrieve or edit a radiology imaging order of a patient from Clinic B. | Blocked instantly with a clear `404 Radiology order not found` response, preventing cross-tenant access. | Passed |
 | **Laboratory Order Tenant Cross-Access** | Clinician from Clinic A attempts to retrieve, edit, or progress a lab order belonging to Clinic B. | Blocked instantly with a clear `404 Lab order not found` response, preventing BOLA harvesting. | Passed |
 | **Simultaneous Booking Race Condition** | Two receptionists on slow networks submit overlapping appointment bookings for the same doctor/time concurrently. | The first transaction completes successfully, while the second aborts gracefully, returning a clear 400 error. | Passed |
+| **Automated Restocking Alert Trigger** | Record a pharmacy sale that drains stock of a medicine below its safety minimum. | Immediately displays an in-app alert warning of the low stock condition and logs an administrative email alert. | Passed |

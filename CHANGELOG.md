@@ -2,6 +2,15 @@
 
 All notable changes to the Hospital ERP SaaS project will be documented in this file.
 
+## [2.5.0] - 2026-07-17
+### Added
+- **Automated Pharmacy Restocking & Low-Stock Alerts**: Implemented dynamic inventory monitoring within `MedicineService` to trigger real-time, high-visibility clinic-level restocking warnings. When a medicine's stock drops below its defined `minStockAlert` threshold during sales or dispensing, the system automatically dispatches notifications to clinic administrators via email and in-app channels.
+- **Suite 11 Pharmacy Integration Test Suite**: Added a robust integration test suite in `tests/runner.ts` validating successful medicine transactions, stock-level check assertions, notification triggers, and channel verification.
+- **Patient Invoicing & Billing Module**: Deployed and finalized the patient billing ledger, covering multi-item invoice compile flows, VAT calculations, co-pay tracking, and outstanding debt collection.
+
+### Changed
+- **Reactive Inventory Control**: Refactored `MedicineService.sellMedicine` to automatically query and evaluate current post-transaction stock quantities, ensuring instantaneous alerts.
+
 ## [2.4.0] - 2026-07-17
 ### Added
 - **Calendar Double-Booking Protection**: Implemented strict high-isolation database transaction locks (`Serializable` level) wrapping both appointment creation and schedule modifications.

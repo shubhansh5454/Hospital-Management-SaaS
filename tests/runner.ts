@@ -986,6 +986,73 @@ async function run() {
   });
 
   // ==========================================
+  // 11. PHARMACY INVENTORY & LOW-STOCK RESTOCKING ALERTS TESTS
+  // ==========================================
+  await t.suiteAsync('11. Pharmacy Inventory & Low-Stock Restocking Alerts Tests', async () => {
+    const { MedicineService } = await import('../src/server/services/medicine.ts');
+    const { MedicineRepository } = await import('../src/server/repositories/medicine.ts');
+    const { NotificationService } = await import('../src/server/services/notification.ts');
+
+    const originalFindById = MedicineRepository.findById;
+    const originalRecordSale = MedicineRepository.recordSale;
+    const originalSendNotification = NotificationService.sendNotification;
+
+    try {
+      // 1. Mock Medicine under threshold (stock: 5, minStockAlert: 10)
+      MedicineRepository.findById = async (id: number) => {
+        if (id === 101) {
+          return {
+            id: 101,
+            name: 'Amoxicillin Trihydrate',
+            code: 'AMX-500',
+            category: 'Antibiotics',
+            stock: 5,
+            minStockAlert: 10,
+            expiryDate: '2028-12-31',
+            unitPrice: 12.5,
+            purchasePrice: 6.2
+          } as any;
+        }
+        return null;
+      };
+
+      // Mock successful sale
+      MedicineRepository.recordSale = async (data: any) => {
+        return { id: 707, ...data } as any;
+      };
+
+      // Track notification calls
+      let notificationParams: any = null;
+      NotificationService.sendNotification = async (input: any) => {
+        notificationParams = input;
+        return [] as any[];
+      };
+
+      const saleInput = {
+        medicineId: 101,
+        quantity: 2,
+        saleDate: '2026-07-17',
+        totalPrice: 25.0,
+        paymentMethod: 'CASH'
+      };
+
+      // Trigger sale
+      const sale = await MedicineService.sellMedicine(saleInput);
+
+      t.assert('Sale is successfully recorded', sale.id === 707);
+      t.assert('Notification trigger was fired when stock dropped below minimum threshold', notificationParams !== null);
+      t.assert('Notification has correct high-visibility warning title', notificationParams?.title.includes('Pharmacy Low Stock Alert'));
+      t.assert('Notification directs warning to correct medicine and remaining units', notificationParams?.message.includes('AMX-500') && notificationParams?.message.includes('safety threshold'));
+      t.assert('Notification includes Email and In-App delivery channels', notificationParams?.channels.includes('EMAIL') && notificationParams?.channels.includes('IN_APP'));
+
+    } finally {
+      MedicineRepository.findById = originalFindById;
+      MedicineRepository.recordSale = originalRecordSale;
+      NotificationService.sendNotification = originalSendNotification;
+    }
+  });
+
+  // ==========================================
   // EXECUTE RUNNER SUMMARY
   // ==========================================
   t.printSummary();
