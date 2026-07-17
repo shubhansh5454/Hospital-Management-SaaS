@@ -131,4 +131,34 @@ export class PatientController {
       next(error);
     }
   }
+
+  /**
+   * Export patient record in HL7 FHIR and CCDA formats
+   */
+  public static async exportRecord(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        throw new AppError('Invalid patient ID format', 400);
+      }
+
+      const exportedData = await PatientService.exportClinicalData(id);
+
+      // Log security audit for sensitive patient record access/download (CCDA / FHIR compliance audit trail)
+      try {
+        await RolesService.logRequest(
+          req,
+          'EXPORT_PATIENT_RECORD',
+          'patients',
+          { id, fhirDocId: exportedData.fhirBundle.id }
+        );
+      } catch (logErr) {
+        console.error('Audit logging failed for patient record export:', logErr);
+      }
+
+      res.status(200).json(exportedData);
+    } catch (error) {
+      next(error);
+    }
+  }
 }

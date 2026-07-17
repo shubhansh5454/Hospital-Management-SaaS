@@ -11,6 +11,7 @@ router.use(requireRoles(['admin', 'doctor', 'receptionist']));
 // CRUD Route definitions
 router.get('/', PatientController.getAll);
 router.get('/:id', PatientController.getById);
+router.get('/:id/export', PatientController.exportRecord);
 router.post('/', PatientController.create);
 router.put('/:id', PatientController.update);
 router.delete('/:id', PatientController.delete);

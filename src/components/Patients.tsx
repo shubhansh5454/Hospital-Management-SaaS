@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext.tsx';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, 
   Search, 
@@ -14,7 +15,13 @@ import {
   MapPin, 
   Activity, 
   Check, 
-  AlertCircle 
+  AlertCircle,
+  Download,
+  Copy,
+  Printer,
+  Share2,
+  FileText,
+  X
 } from 'lucide-react';
 
 const patientFormSchema = z.object({
@@ -36,6 +43,88 @@ export default function Patients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Compliance Export and HL7 Interoperability states
+  const [exportPatient, setExportPatient] = useState<any | null>(null);
+  const [activeExportTab, setActiveExportTab] = useState<'fhir' | 'ccda'>('fhir');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportedData, setExportedData] = useState<{ fhirBundle: any; ccdaSummary: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleTriggerExport = async (patient: any) => {
+    setExportPatient(patient);
+    setExportLoading(true);
+    setExportedData(null);
+    setActiveExportTab('fhir');
+    try {
+      const res = await fetch(`/api/patients/${patient.id}/export`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to generate clinical export');
+      const data = await res.json();
+      setExportedData(data);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Error compiling clinical export records.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleCopyJson = () => {
+    if (!exportedData) return;
+    navigator.clipboard.writeText(JSON.stringify(exportedData.fhirBundle, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadJson = () => {
+    if (!exportedData) return;
+    const blob = new Blob([JSON.stringify(exportedData.fhirBundle, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fhir-patient-${exportPatient.name.toLowerCase().replace(/\s+/g, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePrintCcda = () => {
+    if (!exportedData) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Continuity of Care Document - ${exportPatient.name}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body class="p-8 bg-white">
+          <div style="max-width: 900px; margin: 0 auto;">
+            ${exportedData.ccdaSummary}
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleDownloadCcda = () => {
+    if (!exportedData) return;
+    const blob = new Blob([exportedData.ccdaSummary], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ccda-${exportPatient.name.toLowerCase().replace(/\s+/g, '-')}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // TanStack Query: Fetch Patients
   const { data: patients = [], isLoading, error } = useQuery({
@@ -322,6 +411,7 @@ export default function Patients() {
                       <th className="py-3 px-6">Date of Birth</th>
                       <th className="py-3 px-6 text-center">Blood</th>
                       <th className="py-3 px-6">Medical Summary</th>
+                      <th className="py-3 px-6 text-right">Interoperability</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -357,6 +447,15 @@ export default function Patients() {
                         <td className="py-4 px-6 text-xs text-slate-500 max-w-xs truncate" title={p.medicalHistory}>
                           {p.medicalHistory || <span className="italic text-slate-300">No custom records added</span>}
                         </td>
+                        <td className="py-4 px-6 text-right">
+                          <button
+                            onClick={() => handleTriggerExport(p)}
+                            className="h-8 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                            <span>Export (FHIR/CCDA)</span>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -366,6 +465,144 @@ export default function Patients() {
           )}
         </div>
       )}
+
+      {/* HL7 FHIR & CCDA Interoperability & Compliance Export Panel */}
+      <AnimatePresence>
+        {exportPatient && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white border border-slate-100 shadow-2xl rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="p-6 border-b border-slate-100 flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-indigo-50 text-indigo-700 text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold">
+                      HIPAA / FHIR Compliance Portal
+                    </span>
+                    <span className="bg-teal-50 text-teal-700 text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold">
+                      CareSync v2.1
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-800 mt-2">
+                    Clinical Record Interoperability & Export
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Exporting official clinical data for patient: <strong className="text-slate-600">{exportPatient.name}</strong>
+                  </p>
+                </div>
+                <button
+                  onClick={() => setExportPatient(null)}
+                  className="w-8 h-8 rounded-full border border-slate-100 hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modal Tabs Switching */}
+              <div className="bg-slate-50 px-6 py-2.5 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setActiveExportTab('fhir')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                      activeExportTab === 'fhir' 
+                        ? 'bg-indigo-600 text-white shadow-sm' 
+                        : 'text-slate-500 hover:bg-slate-200'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>HL7 FHIR R4 (JSON)</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveExportTab('ccda')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                      activeExportTab === 'ccda' 
+                        ? 'bg-teal-600 text-white shadow-sm' 
+                        : 'text-slate-500 hover:bg-slate-200'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Continuity of Care Summary (C-CDA)</span>
+                  </button>
+                </div>
+
+                {/* Download Actions Panel */}
+                {exportedData && (
+                  <div className="flex gap-2">
+                    {activeExportTab === 'fhir' ? (
+                      <>
+                        <button
+                          onClick={handleCopyJson}
+                          className="h-8 px-3 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer bg-white shadow-sm"
+                        >
+                          {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copied ? 'Copied Bundle!' : 'Copy JSON'}</span>
+                        </button>
+                        <button
+                          onClick={handleDownloadJson}
+                          className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download FHIR Bundle</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handlePrintCcda}
+                          className="h-8 px-3 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer bg-white shadow-sm"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>Print Summary</span>
+                        </button>
+                        <button
+                          onClick={handleDownloadCcda}
+                          className="h-8 px-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download CCDA Document</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Body / Viewer */}
+              <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+                {exportLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
+                    <div className="text-center">
+                      <p className="text-xs font-bold text-slate-700 animate-pulse">Compiling secure electronic health registry...</p>
+                      <p className="text-[10px] text-slate-400 mt-1">HL7 interoperability engine preparing JSON schemas</p>
+                    </div>
+                  </div>
+                ) : exportedData ? (
+                  activeExportTab === 'fhir' ? (
+                    <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-900 text-slate-300 p-4 font-mono text-[11px] leading-relaxed max-h-[500px] overflow-y-auto shadow-inner text-left">
+                      <pre>{JSON.stringify(exportedData.fhirBundle, null, 2)}</pre>
+                    </div>
+                  ) : (
+                    <div className="max-h-[500px] overflow-y-auto border border-slate-200 rounded-2xl bg-white shadow-sm text-left">
+                      <div dangerouslySetInnerHTML={{ __html: exportedData.ccdaSummary }} />
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-2">
+                    <AlertCircle className="w-8 h-8 text-rose-500" />
+                    <p className="text-xs font-bold text-slate-600">Error generating export data</p>
+                    <p className="text-[10px]">Please ensure database integrity and retry.</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
