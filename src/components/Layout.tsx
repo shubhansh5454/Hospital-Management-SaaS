@@ -140,6 +140,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'inventory', name: 'Inventory & Supplies', icon: Package, roles: ['admin', 'doctor', 'receptionist'] },
     { id: 'notifications', name: 'Notifications', icon: Bell, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'reports', name: 'Reports & Analytics', icon: FileBarChart2, roles: ['admin', 'doctor', 'receptionist'] },
+    { id: 'business-intelligence', name: 'Business Intelligence', icon: FileBarChart2, roles: ['admin', 'doctor', 'superadmin'] },
     { id: 'documents', name: 'Document Center', icon: Folder, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'ai-assistant', name: 'AI Clinical Suite', icon: Sparkles, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'video-consultation', name: 'Video Consultation', icon: Video, roles: ['admin', 'doctor', 'receptionist', 'patient'] },

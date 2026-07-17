@@ -24,6 +24,7 @@ const Radiology = lazy(() => import('./components/Radiology.tsx'));
 const Inventory = lazy(() => import('./components/Inventory.tsx'));
 const Notifications = lazy(() => import('./components/Notifications.tsx'));
 const Reports = lazy(() => import('./components/Reports.tsx'));
+const BusinessIntelligence = lazy(() => import('./components/BusinessIntelligence.tsx'));
 const SaaSAdmin = lazy(() => import('./components/SaaSAdmin.tsx'));
 const ClinicSettings = lazy(() => import('./components/ClinicSettings.tsx'));
 const AccessManagement = lazy(() => import('./components/AccessManagement.tsx'));
@@ -123,6 +124,7 @@ function AppContent() {
         {activeTab === 'inventory' && <Inventory />}
         {activeTab === 'notifications' && <Notifications />}
         {activeTab === 'reports' && <Reports />}
+        {activeTab === 'business-intelligence' && <BusinessIntelligence />}
         {activeTab === 'documents' && <Documents />}
         {activeTab === 'ai-assistant' && <AIAssistant />}
         {activeTab === 'video-consultation' && <VideoConsultation />}
