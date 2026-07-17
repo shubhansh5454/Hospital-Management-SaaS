@@ -147,6 +147,9 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'insurance', name: 'Insurance & Claims', icon: Shield, roles: ['admin', 'doctor', 'receptionist', 'patient'] },
     { id: 'hr', name: 'HR Management', icon: UserCheck, roles: ['admin', 'doctor', 'receptionist', 'superadmin'] },
     { id: 'backup', name: 'Backup & Restore', icon: Database, roles: ['admin', 'superadmin'] },
+    { id: 'workflows', name: 'Workflows & Orchestration', icon: Clock, roles: ['admin', 'superadmin'] },
+    { id: 'rules', name: 'Business Rules Engine', icon: ShieldAlert, roles: ['admin', 'superadmin'] },
+    { id: 'integrations', name: 'Integration Hub', icon: Database, roles: ['admin', 'superadmin'] },
   ];
 
 

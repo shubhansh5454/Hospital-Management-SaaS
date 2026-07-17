@@ -34,6 +34,9 @@ const VideoConsultation = lazy(() => import('./components/VideoConsultation.tsx'
 const Insurance = lazy(() => import('./components/Insurance.tsx'));
 const HRManagement = lazy(() => import('./components/HRManagement.tsx'));
 const BackupManagement = lazy(() => import('./components/BackupManagement.tsx'));
+const WorkflowEngine = lazy(() => import('./components/WorkflowEngine.tsx'));
+const RuleEngine = lazy(() => import('./components/RuleEngine.tsx'));
+const IntegrationHub = lazy(() => import('./components/IntegrationHub.tsx'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -131,6 +134,9 @@ function AppContent() {
         {activeTab === 'insurance' && <Insurance />}
         {activeTab === 'hr' && <HRManagement />}
         {activeTab === 'backup' && <BackupManagement />}
+        {activeTab === 'workflows' && <WorkflowEngine />}
+        {activeTab === 'rules' && <RuleEngine />}
+        {activeTab === 'integrations' && <IntegrationHub />}
       </Suspense>
     </Layout>
   );

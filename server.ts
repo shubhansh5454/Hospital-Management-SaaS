@@ -7,6 +7,7 @@ import { requestLogger } from './src/server/middleware/requestLogger.ts';
 import apiRouter from './src/server/routes/index.ts';
 import { errorHandler } from './src/server/middleware/errorHandler.ts';
 import { RolesService } from './src/server/services/roles.ts';
+import { apiGatewayOrchestrator } from './src/server/middleware/gateway.ts';
 import { 
   secureHeaders, 
   rateLimiter, 
@@ -57,6 +58,9 @@ async function startServer() {
   
   // Request execution logging middleware
   app.use(requestLogger);
+
+  // Apply API Gateway & Observability Orchestrator
+  app.use('/api', apiGatewayOrchestrator);
 
   // Mount clean, modular API routes under /api prefix
   app.use('/api', apiRouter);
