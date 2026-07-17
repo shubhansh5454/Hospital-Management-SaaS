@@ -7,10 +7,14 @@ export const integrationsRouter = Router();
 integrationsRouter.use(requireAuth);
 
 // Get all integration providers
-integrationsRouter.get('/', (req, res, next) => {
+integrationsRouter.get('/', async (req, res, next) => {
   try {
-    const providers = IntegrationHub.getProviders();
-    res.json(providers);
+    const providers = await IntegrationHub.getProviders();
+    const sanitized = providers.map(p => ({
+      ...p,
+      credentials: IntegrationHub.maskCredentials(p.credentials)
+    }));
+    res.json(sanitized);
   } catch (error) {
     next(error);
   }
@@ -20,21 +24,25 @@ integrationsRouter.get('/', (req, res, next) => {
 integrationsRouter.post('/ping', async (req, res, next) => {
   try {
     const audited = await IntegrationHub.pingAllProviders();
-    res.json(audited);
+    const sanitized = audited.map(p => ({
+      ...p,
+      credentials: IntegrationHub.maskCredentials(p.credentials)
+    }));
+    res.json(sanitized);
   } catch (error) {
     next(error);
   }
 });
 
 // Switch active provider for a category
-integrationsRouter.post('/switch', (req, res, next) => {
+integrationsRouter.post('/switch', async (req, res, next) => {
   try {
     const { category, providerId } = req.body;
     if (!category || !providerId) {
       res.status(400).json({ error: 'Both category and providerId are required.' });
       return;
     }
-    IntegrationHub.switchActiveProvider(category as IntegrationCategory, providerId);
+    await IntegrationHub.switchActiveProvider(category as IntegrationCategory, providerId);
     res.json({ message: `Successfully switched active ${category} provider to ${providerId}.` });
   } catch (error) {
     next(error);
@@ -42,12 +50,18 @@ integrationsRouter.post('/switch', (req, res, next) => {
 });
 
 // Update provider configuration & credentials
-integrationsRouter.put('/:id', (req, res, next) => {
+integrationsRouter.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { credentials, settings } = req.body;
-    const updated = IntegrationHub.updateProviderDetails(id, credentials || {}, settings || {});
-    res.json({ message: 'Configuration saved successfully', data: updated });
+    const updated = await IntegrationHub.updateProviderDetails(id, credentials || {}, settings || {});
+    res.json({ 
+      message: 'Configuration saved successfully', 
+      data: {
+        ...updated,
+        credentials: IntegrationHub.maskCredentials(updated.credentials)
+      } 
+    });
   } catch (error: any) {
     res.status(404).json({ error: error.message });
   }

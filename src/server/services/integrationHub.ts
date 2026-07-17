@@ -162,22 +162,41 @@ export class IntegrationHub {
     }
   ];
 
-  private static initFiles() {
+  private static async initFiles() {
     if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+      await fs.promises.mkdir(DATA_DIR, { recursive: true });
     }
     if (!fs.existsSync(INTEGRATIONS_FILE)) {
-      fs.writeFileSync(INTEGRATIONS_FILE, JSON.stringify(this.defaultProviders, null, 2), 'utf-8');
+      await fs.promises.writeFile(INTEGRATIONS_FILE, JSON.stringify(this.defaultProviders, null, 2), 'utf-8');
     }
+  }
+
+  /**
+   * Safe credentials masking for API GET transfers
+   */
+  public static maskCredentials(credentials: Record<string, string>): Record<string, string> {
+    const masked: Record<string, string> = {};
+    for (const [key, value] of Object.entries(credentials)) {
+      if (!value) {
+        masked[key] = '';
+      } else if (value.length <= 8) {
+        masked[key] = '********';
+      } else {
+        const prefix = value.substring(0, 4);
+        const suffix = value.substring(value.length - 4);
+        masked[key] = `${prefix}********${suffix}`;
+      }
+    }
+    return masked;
   }
 
   /**
    * Load providers from config
    */
-  public static getProviders(): IntegrationProvider[] {
-    this.initFiles();
+  public static async getProviders(): Promise<IntegrationProvider[]> {
+    await this.initFiles();
     try {
-      const data = fs.readFileSync(INTEGRATIONS_FILE, 'utf-8');
+      const data = await fs.promises.readFile(INTEGRATIONS_FILE, 'utf-8');
       return JSON.parse(data || '[]');
     } catch {
       return this.defaultProviders;
@@ -187,16 +206,16 @@ export class IntegrationHub {
   /**
    * Save providers to config
    */
-  public static saveProviders(providers: IntegrationProvider[]): void {
-    this.initFiles();
-    fs.writeFileSync(INTEGRATIONS_FILE, JSON.stringify(providers, null, 2), 'utf-8');
+  public static async saveProviders(providers: IntegrationProvider[]): Promise<void> {
+    await this.initFiles();
+    await fs.promises.writeFile(INTEGRATIONS_FILE, JSON.stringify(providers, null, 2), 'utf-8');
   }
 
   /**
    * Switch active provider for a category (ensures only one is active per category)
    */
-  public static switchActiveProvider(categoryId: IntegrationCategory, providerId: string): void {
-    const providers = this.getProviders();
+  public static async switchActiveProvider(categoryId: IntegrationCategory, providerId: string): Promise<void> {
+    const providers = await this.getProviders();
     const updated = providers.map(prov => {
       if (prov.category === categoryId) {
         return {
@@ -207,7 +226,7 @@ export class IntegrationHub {
       return prov;
     });
 
-    this.saveProviders(updated);
+    await this.saveProviders(updated);
     logger.info(`IntegrationHub: Activated provider "${providerId}" for category "${categoryId}"`);
   }
 
@@ -215,7 +234,7 @@ export class IntegrationHub {
    * Trigger health ping checks across all integrated services
    */
   public static async pingAllProviders(): Promise<IntegrationProvider[]> {
-    const providers = this.getProviders();
+    const providers = await this.getProviders();
     const updated = providers.map(prov => {
       // Simulate real-world ping check with dynamic jitter
       if (prov.healthStatus === 'offline') {
@@ -233,27 +252,38 @@ export class IntegrationHub {
       return prov;
     });
 
-    this.saveProviders(updated);
+    await this.saveProviders(updated);
     logger.info(`IntegrationHub: Complete external dependency health audit performed.`);
     return updated;
   }
 
   /**
-   * Update credentials/settings for a provider safely
+   * Update credentials/settings for a provider safely (prevent overwriting real secrets with masked strings)
    */
-  public static updateProviderDetails(providerId: string, credentials: Record<string, string>, settings: Record<string, any>): IntegrationProvider {
-    const providers = this.getProviders();
+  public static async updateProviderDetails(providerId: string, credentials: Record<string, string>, settings: Record<string, any>): Promise<IntegrationProvider> {
+    const providers = await this.getProviders();
     const idx = providers.findIndex(p => p.id === providerId);
     if (idx === -1) {
       throw new Error(`Integration provider ${providerId} not found`);
     }
 
-    providers[idx].credentials = { ...providers[idx].credentials, ...credentials };
+    const currentCreds = providers[idx].credentials;
+    const finalCreds = { ...currentCreds };
+
+    for (const [key, value] of Object.entries(credentials)) {
+      // If user submitted a masked value or untouched key, preserve the original value!
+      if (value && value.includes('********')) {
+        continue;
+      }
+      finalCreds[key] = value;
+    }
+
+    providers[idx].credentials = finalCreds;
     providers[idx].settings = { ...providers[idx].settings, ...settings };
     providers[idx].healthStatus = 'healthy'; // reset status upon config modification
     providers[idx].lastChecked = new Date().toISOString();
 
-    this.saveProviders(providers);
+    await this.saveProviders(providers);
     logger.info(`IntegrationHub: Updated credentials for provider ${providerId}`);
     return providers[idx];
   }

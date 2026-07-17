@@ -34,9 +34,9 @@ workflowRouter.post('/templates', (req, res, next) => {
 });
 
 // Get all workflow instances
-workflowRouter.get('/instances', (req, res, next) => {
+workflowRouter.get('/instances', async (req, res, next) => {
   try {
-    const instances = WorkflowEngine.getInstances();
+    const instances = await WorkflowEngine.getInstances();
     res.json(instances);
   } catch (error) {
     next(error);
@@ -44,7 +44,7 @@ workflowRouter.get('/instances', (req, res, next) => {
 });
 
 // Start workflow instance
-workflowRouter.post('/instances', (req, res, next) => {
+workflowRouter.post('/instances', async (req, res, next) => {
   try {
     const { templateId, name, variables } = req.body;
     const userDisplayName = (req as any).user?.name || 'Administrator';
@@ -52,7 +52,7 @@ workflowRouter.post('/instances', (req, res, next) => {
       res.status(400).json({ error: 'Template ID is required to instantiate workflow' });
       return;
     }
-    const instance = WorkflowEngine.startWorkflow(templateId, name, userDisplayName, variables || {});
+    const instance = await WorkflowEngine.startWorkflow(templateId, name, userDisplayName, variables || {});
     res.status(201).json(instance);
   } catch (error) {
     next(error);
@@ -60,7 +60,7 @@ workflowRouter.post('/instances', (req, res, next) => {
 });
 
 // Approve or complete a manual task
-workflowRouter.post('/instances/:id/approve', (req, res, next) => {
+workflowRouter.post('/instances/:id/approve', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { stepId, approved, notes } = req.body;
@@ -71,7 +71,7 @@ workflowRouter.post('/instances/:id/approve', (req, res, next) => {
       return;
     }
 
-    const updatedInstance = WorkflowEngine.approveOrCompleteStep(id, stepId, userDisplayName, approved !== false, notes);
+    const updatedInstance = await WorkflowEngine.approveOrCompleteStep(id, stepId, userDisplayName, approved !== false, notes);
     res.json(updatedInstance);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -79,7 +79,7 @@ workflowRouter.post('/instances/:id/approve', (req, res, next) => {
 });
 
 // Escalate step manually due to timeout or urgency
-workflowRouter.post('/instances/:id/escalate', (req, res, next) => {
+workflowRouter.post('/instances/:id/escalate', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { stepId } = req.body;
@@ -90,7 +90,7 @@ workflowRouter.post('/instances/:id/escalate', (req, res, next) => {
       return;
     }
 
-    const updatedInstance = WorkflowEngine.triggerEscalation(id, stepId, userDisplayName);
+    const updatedInstance = await WorkflowEngine.triggerEscalation(id, stepId, userDisplayName);
     res.json(updatedInstance);
   } catch (error: any) {
     res.status(400).json({ error: error.message });

@@ -81,7 +81,7 @@ export class EventBus {
     this.processedEventIds.add(event.id);
 
     // 2. Log event to storage
-    this.logEvent(event);
+    await this.logEvent(event);
     logger.info(`EventBus [Publish]: "${event.name}" (ID: ${event.id}) published from ${event.source}`);
 
     // 3. Find subscribers
@@ -119,24 +119,24 @@ export class EventBus {
 
     // Routing to DLQ after exhausting all retries
     logger.error(`EventBus [DLQ Alert]: Exhausted all ${this.maxRetries} retries for subscriber ${sub.id} processing event ${event.id} (${event.name}). Routing to DLQ.`);
-    this.routeToDLQ(sub.id, event);
+    await this.routeToDLQ(sub.id, event);
   }
 
   /**
    * Log published event to disk
    */
-  private static logEvent(event: DomainEvent): void {
+  private static async logEvent(event: DomainEvent): Promise<void> {
     try {
       let logs: DomainEvent[] = [];
       if (fs.existsSync(EVENT_LOG_FILE)) {
-        const content = fs.readFileSync(EVENT_LOG_FILE, 'utf-8');
+        const content = await fs.promises.readFile(EVENT_LOG_FILE, 'utf-8');
         logs = JSON.parse(content || '[]');
       }
       logs.unshift(event);
       if (logs.length > 500) {
         logs.pop(); // Keep only last 500 events
       }
-      fs.writeFileSync(EVENT_LOG_FILE, JSON.stringify(logs, null, 2), 'utf-8');
+      await fs.promises.writeFile(EVENT_LOG_FILE, JSON.stringify(logs, null, 2), 'utf-8');
     } catch (err) {
       logger.error('Failed to log event to local store:', err);
     }
@@ -145,11 +145,11 @@ export class EventBus {
   /**
    * Route failed event to Dead Letter Queue
    */
-  private static routeToDLQ(subscriberId: string, event: DomainEvent): void {
+  private static async routeToDLQ(subscriberId: string, event: DomainEvent): Promise<void> {
     try {
       let dlq: any[] = [];
       if (fs.existsSync(DLQ_FILE)) {
-        const content = fs.readFileSync(DLQ_FILE, 'utf-8');
+        const content = await fs.promises.readFile(DLQ_FILE, 'utf-8');
         dlq = JSON.parse(content || '[]');
       }
       dlq.unshift({
@@ -158,7 +158,7 @@ export class EventBus {
         failedAt: new Date().toISOString(),
         event
       });
-      fs.writeFileSync(DLQ_FILE, JSON.stringify(dlq, null, 2), 'utf-8');
+      await fs.promises.writeFile(DLQ_FILE, JSON.stringify(dlq, null, 2), 'utf-8');
     } catch (err) {
       logger.error('Failed to route event to DLQ:', err);
     }
@@ -167,10 +167,11 @@ export class EventBus {
   /**
    * Get Event logs for monitoring
    */
-  public static getEventLogs(): DomainEvent[] {
+  public static async getEventLogs(): Promise<DomainEvent[]> {
     try {
       if (fs.existsSync(EVENT_LOG_FILE)) {
-        return JSON.parse(fs.readFileSync(EVENT_LOG_FILE, 'utf-8') || '[]');
+        const content = await fs.promises.readFile(EVENT_LOG_FILE, 'utf-8');
+        return JSON.parse(content || '[]');
       }
     } catch {
       // Return fallback
@@ -181,10 +182,11 @@ export class EventBus {
   /**
    * Get DLQ records for administrative retry / debugging
    */
-  public static getDLQRecords(): any[] {
+  public static async getDLQRecords(): Promise<any[]> {
     try {
       if (fs.existsSync(DLQ_FILE)) {
-        return JSON.parse(fs.readFileSync(DLQ_FILE, 'utf-8') || '[]');
+        const content = await fs.promises.readFile(DLQ_FILE, 'utf-8');
+        return JSON.parse(content || '[]');
       }
     } catch {
       // Return fallback
@@ -195,9 +197,9 @@ export class EventBus {
   /**
    * Clear DLQ
    */
-  public static clearDLQ(): void {
+  public static async clearDLQ(): Promise<void> {
     try {
-      fs.writeFileSync(DLQ_FILE, JSON.stringify([], null, 2), 'utf-8');
+      await fs.promises.writeFile(DLQ_FILE, JSON.stringify([], null, 2), 'utf-8');
     } catch (err) {
       logger.error('Failed to clear DLQ:', err);
     }

@@ -148,12 +148,12 @@ export class WorkflowEngine {
     }
   ];
 
-  private static initFiles() {
+  private static async initFiles() {
     if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+      await fs.promises.mkdir(DATA_DIR, { recursive: true });
     }
     if (!fs.existsSync(WORKFLOWS_FILE)) {
-      fs.writeFileSync(WORKFLOWS_FILE, JSON.stringify([], null, 2), 'utf-8');
+      await fs.promises.writeFile(WORKFLOWS_FILE, JSON.stringify([], null, 2), 'utf-8');
     }
   }
 
@@ -166,32 +166,32 @@ export class WorkflowEngine {
     return tpl;
   }
 
-  public static getInstances(): WorkflowInstance[] {
-    this.initFiles();
+  public static async getInstances(): Promise<WorkflowInstance[]> {
+    await this.initFiles();
     try {
-      const data = fs.readFileSync(WORKFLOWS_FILE, 'utf-8');
+      const data = await fs.promises.readFile(WORKFLOWS_FILE, 'utf-8');
       return JSON.parse(data || '[]');
     } catch {
       return [];
     }
   }
 
-  private static saveInstances(instances: WorkflowInstance[]) {
-    this.initFiles();
-    fs.writeFileSync(WORKFLOWS_FILE, JSON.stringify(instances, null, 2), 'utf-8');
+  private static async saveInstances(instances: WorkflowInstance[]) {
+    await this.initFiles();
+    await fs.promises.writeFile(WORKFLOWS_FILE, JSON.stringify(instances, null, 2), 'utf-8');
   }
 
   /**
    * Start a new workflow instance from a template
    */
-  public static startWorkflow(templateId: string, name: string, creator: string, variables: Record<string, any> = {}): WorkflowInstance {
+  public static async startWorkflow(templateId: string, name: string, creator: string, variables: Record<string, any> = {}): Promise<WorkflowInstance> {
     const templates = this.getTemplates();
     const template = templates.find(t => t.id === templateId);
     if (!template) {
       throw new Error(`Workflow template with ID ${templateId} not found`);
     }
 
-    const instances = this.getInstances();
+    const instances = await this.getInstances();
     const deepCopiedSteps: WorkflowStep[] = JSON.parse(JSON.stringify(template.steps));
 
     const newInstance: WorkflowInstance = {
@@ -215,21 +215,29 @@ export class WorkflowEngine {
     };
 
     instances.unshift(newInstance);
-    this.saveInstances(instances);
 
-    // Trigger execution of the first step
-    this.executeCurrentStep(newInstance.id, creator);
+    // Trigger step execution in memory before writing to disk
+    this.executeWorkflowStepInternal(instances, newInstance.id, creator);
 
-    // Refresh after state transition
-    const updatedInstances = this.getInstances();
-    return updatedInstances.find(i => i.id === newInstance.id) || newInstance;
+    await this.saveInstances(instances);
+
+    return instances.find(i => i.id === newInstance.id) || newInstance;
   }
 
   /**
-   * Process and execute current step
+   * Process and execute current step asynchronously with zero redundant I/O
    */
-  public static executeCurrentStep(instanceId: string, operator: string): void {
-    const instances = this.getInstances();
+  public static async executeCurrentStep(instanceId: string, operator: string): Promise<void> {
+    const instances = await this.getInstances();
+    this.executeWorkflowStepInternal(instances, instanceId, operator);
+    await this.saveInstances(instances);
+  }
+
+  /**
+   * Internal recursive helper that performs step transitions entirely in memory.
+   * File I/O is deferred until the entire cascade of automatic/condition steps is finished.
+   */
+  private static executeWorkflowStepInternal(instances: WorkflowInstance[], instanceId: string, operator: string): void {
     const instIdx = instances.findIndex(i => i.id === instanceId);
     if (instIdx === -1) return;
 
@@ -257,11 +265,9 @@ export class WorkflowEngine {
       });
 
       this.transitionToNext(inst, step, 'success', operator);
-      instances[instIdx] = inst;
-      this.saveInstances(instances);
 
-      // Re-trigger execution recursively for automatic cascading
-      this.executeCurrentStep(instanceId, operator);
+      // Re-trigger execution recursively in memory for automatic cascading
+      this.executeWorkflowStepInternal(instances, instanceId, operator);
     } 
     else if (step.type === 'condition') {
       logger.info(`WorkflowEngine: Evaluating condition step "${step.name}" in instance ${inst.id}`);
@@ -304,11 +310,9 @@ export class WorkflowEngine {
       });
 
       this.transitionToNext(inst, step, conditionMet ? 'success' : 'failure', operator);
-      instances[instIdx] = inst;
-      this.saveInstances(instances);
 
-      // Re-trigger recursively
-      this.executeCurrentStep(instanceId, operator);
+      // Re-trigger recursively in memory
+      this.executeWorkflowStepInternal(instances, instanceId, operator);
     } 
     else {
       // Manual action or Approval steps await human intervention. Trigger notifications.
@@ -327,17 +331,14 @@ export class WorkflowEngine {
           // Fallback if NotificationService is offline during tests/seeding
         }
       }
-
-      instances[instIdx] = inst;
-      this.saveInstances(instances);
     }
   }
 
   /**
    * Complete or Approve a step manually
    */
-  public static approveOrCompleteStep(instanceId: string, stepId: string, operator: string, approved: boolean = true, notes?: string): WorkflowInstance {
-    const instances = this.getInstances();
+  public static async approveOrCompleteStep(instanceId: string, stepId: string, operator: string, approved: boolean = true, notes?: string): Promise<WorkflowInstance> {
+    const instances = await this.getInstances();
     const instIdx = instances.findIndex(i => i.id === instanceId);
     if (instIdx === -1) {
       throw new Error(`Workflow instance ${instanceId} not found`);
@@ -378,22 +379,20 @@ export class WorkflowEngine {
       this.transitionToNext(inst, step, 'success', operator);
     }
 
-    instances[instIdx] = inst;
-    this.saveInstances(instances);
-
     if (inst.status === 'RUNNING') {
-      this.executeCurrentStep(instanceId, operator);
+      this.executeWorkflowStepInternal(instances, instanceId, operator);
     }
 
-    const updatedInstances = this.getInstances();
-    return updatedInstances.find(i => i.id === instanceId) || inst;
+    await this.saveInstances(instances);
+
+    return instances.find(i => i.id === instanceId) || inst;
   }
 
   /**
    * Handle step escalations (Simulates timers expiring)
    */
-  public static triggerEscalation(instanceId: string, stepId: string, operator: string): WorkflowInstance {
-    const instances = this.getInstances();
+  public static async triggerEscalation(instanceId: string, stepId: string, operator: string): Promise<WorkflowInstance> {
+    const instances = await this.getInstances();
     const instIdx = instances.findIndex(i => i.id === instanceId);
     if (instIdx === -1) {
       throw new Error(`Workflow instance ${instanceId} not found`);
@@ -429,8 +428,7 @@ export class WorkflowEngine {
       // Catch silences
     }
 
-    instances[instIdx] = inst;
-    this.saveInstances(instances);
+    await this.saveInstances(instances);
     return inst;
   }
 

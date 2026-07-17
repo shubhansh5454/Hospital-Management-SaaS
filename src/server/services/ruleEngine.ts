@@ -92,22 +92,22 @@ export class RuleEngine {
     }
   ];
 
-  private static initFiles() {
+  private static async initFiles() {
     if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+      await fs.promises.mkdir(DATA_DIR, { recursive: true });
     }
     if (!fs.existsSync(RULES_FILE)) {
-      fs.writeFileSync(RULES_FILE, JSON.stringify(this.defaultRules, null, 2), 'utf-8');
+      await fs.promises.writeFile(RULES_FILE, JSON.stringify(this.defaultRules, null, 2), 'utf-8');
     }
   }
 
   /**
    * Fetch all business rules from database/JSON
    */
-  public static getRules(): BusinessRule[] {
-    this.initFiles();
+  public static async getRules(): Promise<BusinessRule[]> {
+    await this.initFiles();
     try {
-      const data = fs.readFileSync(RULES_FILE, 'utf-8');
+      const data = await fs.promises.readFile(RULES_FILE, 'utf-8');
       return JSON.parse(data || '[]');
     } catch {
       return this.defaultRules;
@@ -117,16 +117,16 @@ export class RuleEngine {
   /**
    * Save rule set
    */
-  public static saveRules(rules: BusinessRule[]) {
-    this.initFiles();
-    fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2), 'utf-8');
+  public static async saveRules(rules: BusinessRule[]): Promise<void> {
+    await this.initFiles();
+    await fs.promises.writeFile(RULES_FILE, JSON.stringify(rules, null, 2), 'utf-8');
   }
 
   /**
    * Execute business rules against a dynamic context payload
    */
-  public static executeRules(category: string, context: Record<string, any>): Record<string, any> {
-    const rules = this.getRules()
+  public static async executeRules(category: string, context: Record<string, any>): Promise<Record<string, any>> {
+    const rules = (await this.getRules())
       .filter(r => r.enabled && r.category === category)
       .sort((a, b) => b.priority - a.priority); // Execute higher priority rules first
 

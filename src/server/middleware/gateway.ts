@@ -30,6 +30,14 @@ export function apiGatewayOrchestrator(req: Request, res: Response, next: NextFu
   const cacheKey = `${req.method}:${req.originalUrl}`;
   const now = Date.now();
   
+  // Automatic Cache Invalidation for State-Modifying operations
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    const pathParts = req.path.split('/').filter(p => p && p !== 'api');
+    pathParts.forEach(part => {
+      invalidateGatewayCache(part);
+    });
+  }
+  
   if (req.method === 'GET' && gatewayCache[cacheKey] && gatewayCache[cacheKey].expiry > now) {
     logger.info(`[API Gateway] Cache HIT on: ${cacheKey} (Correlation ID: ${correlationId})`);
     res.setHeader('X-Cache', 'HIT');

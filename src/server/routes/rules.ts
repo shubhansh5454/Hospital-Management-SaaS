@@ -7,9 +7,9 @@ export const rulesRouter = Router();
 rulesRouter.use(requireAuth);
 
 // Get all business rules
-rulesRouter.get('/', (req, res, next) => {
+rulesRouter.get('/', async (req, res, next) => {
   try {
-    const rules = RuleEngine.getRules();
+    const rules = await RuleEngine.getRules();
     res.json(rules);
   } catch (error) {
     next(error);
@@ -17,7 +17,7 @@ rulesRouter.get('/', (req, res, next) => {
 });
 
 // Create/Update a business rule
-rulesRouter.post('/', (req, res, next) => {
+rulesRouter.post('/', async (req, res, next) => {
   try {
     const newRule: BusinessRule = req.body;
     if (!newRule.name || !newRule.category || !Array.isArray(newRule.conditions) || !Array.isArray(newRule.actions)) {
@@ -25,7 +25,7 @@ rulesRouter.post('/', (req, res, next) => {
       return;
     }
 
-    const rules = RuleEngine.getRules();
+    const rules = await RuleEngine.getRules();
     const existingIndex = rules.findIndex(r => r.id === newRule.id);
 
     if (existingIndex !== -1) {
@@ -35,7 +35,7 @@ rulesRouter.post('/', (req, res, next) => {
       rules.unshift(newRule);
     }
 
-    RuleEngine.saveRules(rules);
+    await RuleEngine.saveRules(rules);
     res.json({ message: 'Business rule persisted successfully', data: newRule });
   } catch (error) {
     next(error);
@@ -43,17 +43,17 @@ rulesRouter.post('/', (req, res, next) => {
 });
 
 // Toggle rule enablement state
-rulesRouter.post('/:id/toggle', (req, res, next) => {
+rulesRouter.post('/:id/toggle', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const rules = RuleEngine.getRules();
+    const rules = await RuleEngine.getRules();
     const rule = rules.find(r => r.id === id);
     if (!rule) {
       res.status(404).json({ error: 'Rule not found' });
       return;
     }
     rule.enabled = !rule.enabled;
-    RuleEngine.saveRules(rules);
+    await RuleEngine.saveRules(rules);
     res.json({ message: `Rule status toggled to ${rule.enabled ? 'ENABLED' : 'DISABLED'}`, data: rule });
   } catch (error) {
     next(error);
@@ -61,12 +61,12 @@ rulesRouter.post('/:id/toggle', (req, res, next) => {
 });
 
 // Delete a business rule
-rulesRouter.delete('/:id', (req, res, next) => {
+rulesRouter.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const rules = RuleEngine.getRules();
+    const rules = await RuleEngine.getRules();
     const filtered = rules.filter(r => r.id !== id);
-    RuleEngine.saveRules(filtered);
+    await RuleEngine.saveRules(filtered);
     res.json({ message: 'Business rule deleted successfully' });
   } catch (error) {
     next(error);
@@ -74,14 +74,14 @@ rulesRouter.delete('/:id', (req, res, next) => {
 });
 
 // Test / Simulate a rule set against a mock payload
-rulesRouter.post('/simulate', (req, res, next) => {
+rulesRouter.post('/simulate', async (req, res, next) => {
   try {
     const { category, payload } = req.body;
     if (!category || !payload) {
       res.status(400).json({ error: 'Category and test payload are required for simulation.' });
       return;
     }
-    const result = RuleEngine.executeRules(category, payload);
+    const result = await RuleEngine.executeRules(category, payload);
     res.json({
       original: payload,
       evaluated: result
