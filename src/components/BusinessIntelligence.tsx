@@ -187,7 +187,10 @@ export default function BusinessIntelligence() {
         },
         body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error('Failed to register schedule');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to register schedule');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -205,7 +208,10 @@ export default function BusinessIntelligence() {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Failed to toggle scheduled report');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to toggle scheduled report');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -221,7 +227,10 @@ export default function BusinessIntelligence() {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Failed to delete scheduled report');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to delete scheduled report');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -980,11 +989,30 @@ export default function BusinessIntelligence() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (!reportForm.title || !reportForm.recipientEmail) {
+                  const sanitizedTitle = reportForm.title.trim();
+                  const sanitizedEmail = reportForm.recipientEmail.trim();
+                  
+                  if (!sanitizedTitle || !sanitizedEmail) {
                     setErrorToast('All email scheduler fields are mandatory.');
                     return;
                   }
-                  addScheduleMutation.mutate(reportForm);
+                  
+                  if (sanitizedTitle.length < 3) {
+                    setErrorToast('Report title must be at least 3 characters.');
+                    return;
+                  }
+                  
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (!emailRegex.test(sanitizedEmail)) {
+                    setErrorToast('Please enter a valid recipient email format (e.g. user@example.com).');
+                    return;
+                  }
+                  
+                  addScheduleMutation.mutate({
+                    ...reportForm,
+                    title: sanitizedTitle,
+                    recipientEmail: sanitizedEmail
+                  });
                 }}
                 className="space-y-3"
               >

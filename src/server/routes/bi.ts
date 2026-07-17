@@ -11,39 +11,71 @@ const biAuth = [requireAuth, requireRoles(['admin', 'doctor', 'superadmin'])];
 // --- ENDPOINT 1: EXECUTIVE DASHBOARD & FINANCIAL KPIS ---
 router.get('/dashboard-kpis', biAuth, async (req: Request, res: Response) => {
   try {
-    const invoices = (await prisma.invoice.findMany({}).catch(() => [])) as any[];
-    const appointments = (await prisma.appointment.findMany({}).catch(() => [])) as any[];
-    const patients = (await prisma.patient.findMany({}).catch(() => [])) as any[];
-    const doctors = (await prisma.user.findMany({ where: { role: 'doctor' } }).catch(() => [])) as any[];
-    const medicines = (await prisma.medicine.findMany({}).catch(() => [])) as any[];
+    const invoicesPromise = prisma.invoice.findMany({
+      select: { status: true, totalAmount: true }
+    }).catch(() => [] as any[]);
+
+    const completedAppsCountPromise = prisma.appointment.count({
+      where: { status: { in: ['COMPLETED', 'Completed'] } }
+    }).catch(() => 0);
+
+    const totalAppsCountPromise = prisma.appointment.count({}).catch(() => 0);
+
+    const totalPatientsCountPromise = prisma.patient.count({}).catch(() => 0);
+
+    const totalDoctorsCountPromise = prisma.user.count({
+      where: { role: 'doctor' }
+    }).catch(() => 0);
+
+    const medicinesPromise = prisma.medicine.findMany({
+      select: { stock: true, purchasePrice: true }
+    }).catch(() => [] as any[]);
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const activePatientsCountPromise = prisma.patient.count({
+      where: { createdAt: { gte: thirtyDaysAgo } }
+    }).catch(() => 0);
+
+    // Run parallel queries to dramatically reduce API latency (Performance Improvement)
+    const [
+      invoices,
+      completedAppsCount,
+      totalAppsCount,
+      totalPatientsCount,
+      totalDoctorsCount,
+      medicines,
+      activePatientsCount
+    ] = await Promise.all([
+      invoicesPromise,
+      completedAppsCountPromise,
+      totalAppsCountPromise,
+      totalPatientsCountPromise,
+      totalDoctorsCountPromise,
+      medicinesPromise,
+      activePatientsCountPromise
+    ]);
 
     // Calculate total revenue from paid/partially paid invoices
-    const totalRevenue = invoices.reduce((sum: number, inv) => {
-      if (inv.status === 'PAID') return sum + (inv.totalAmount || 0);
-      if (inv.status === 'PARTIALLY_PAID') return sum + ((inv.totalAmount || 0) * 0.5); // estimate half
+    const totalRevenue = (invoices as any[]).reduce((sum: number, inv: any) => {
+      if (inv.status === 'PAID') return sum + (Number(inv.totalAmount) || 0);
+      if (inv.status === 'PARTIALLY_PAID') return sum + ((Number(inv.totalAmount) || 0) * 0.5); // estimate half
       return sum;
     }, 0);
 
-    const outstandingReceivables = invoices.reduce((sum: number, inv) => {
-      if (inv.status === 'UNPAID') return sum + (inv.totalAmount || 0);
-      if (inv.status === 'PARTIALLY_PAID') return sum + ((inv.totalAmount || 0) * 0.5);
+    const outstandingReceivables = (invoices as any[]).reduce((sum: number, inv: any) => {
+      if (inv.status === 'UNPAID') return sum + (Number(inv.totalAmount) || 0);
+      if (inv.status === 'PARTIALLY_PAID') return sum + ((Number(inv.totalAmount) || 0) * 0.5);
       return sum;
     }, 0);
 
     // Calculate average consult size
-    const completedApps = appointments.filter(a => a.status === 'COMPLETED' || a.status === 'Completed');
-    const totalConsultsCount = completedApps.length || appointments.length || 1;
+    const totalConsultsCount = completedAppsCount || totalAppsCount || 1;
     const avgConsultFee = totalRevenue / totalConsultsCount;
 
     // Inventory Valuation
-    const totalInventoryValue = medicines.reduce((sum: number, med) => sum + ((med.stock || 0) * (med.purchasePrice || 0)), 0);
-
-    // Patients served count
-    const totalPatientsCount = patients.length;
-    const totalDoctorsCount = doctors.length;
+    const totalInventoryValue = (medicines as any[]).reduce((sum: number, med: any) => sum + ((Number(med.stock) || 0) * (Number(med.purchasePrice) || 0)), 0);
 
     // Growth rates
-    const activePatientsCount = patients.filter(p => p.createdAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length;
     const patientGrowthRate = totalPatientsCount > 0 ? parseFloat(((activePatientsCount / totalPatientsCount) * 100).toFixed(1)) : 0;
 
     res.json({
@@ -85,7 +117,7 @@ router.get('/revenue-analytics', biAuth, async (req: Request, res: Response) => 
     const paymentBreakdown = [
       { name: 'Card Payments', value: 45, count: 184, amount: 64125 },
       { name: 'Direct Cash', value: 20, count: 95, amount: 28500 },
-      { name: 'UPI / Digital Walllet', value: 30, count: 142, amount: 42750 },
+      { name: 'UPI / Digital Wallet', value: 30, count: 142, amount: 42750 },
       { name: 'Insurance Claims', value: 5, count: 12, amount: 7125 }
     ];
 
@@ -101,7 +133,16 @@ router.get('/revenue-analytics', biAuth, async (req: Request, res: Response) => 
 // --- ENDPOINT 3: DOCTOR PERFORMANCE MATRIX ---
 router.get('/doctor-performance', biAuth, async (req: Request, res: Response) => {
   try {
-    const doctors = await prisma.user.findMany({ where: { role: 'doctor' } }).catch(() => []);
+    const doctors = (await prisma.user.findMany({
+      where: { role: 'doctor' },
+      select: {
+        id: true,
+        name: true,
+        doctorProfile: {
+          select: { specialization: true }
+        }
+      }
+    }).catch(() => [])) as any[];
     
     // Create rich medical staff utilization analytics
     const specialtyMapping: Record<string, string> = {
@@ -125,7 +166,7 @@ router.get('/doctor-performance', biAuth, async (req: Request, res: Response) =>
       return {
         id: doc.id,
         name: doc.name.startsWith('Dr.') ? doc.name : `Dr. ${doc.name}`,
-        specialty: doc.specialty || 'General Practitioner',
+        specialty: doc.doctorProfile?.specialization || 'General Practitioner',
         consultations: mockPerf[baseIndex].consultations + (idx * 5),
         revenue: mockPerf[baseIndex].revenue + (idx * 450),
         rating: parseFloat((4.5 + (idx % 5) * 0.1).toFixed(1)),
@@ -153,24 +194,68 @@ router.get('/patient-growth', biAuth, async (req: Request, res: Response) => {
       { month: 'Jul', activePatients: 2280, newPatients: 195, churned: 25 }
     ];
 
-    const demographics = {
-      gender: [
-        { name: 'Female', value: 54, count: 1231 },
-        { name: 'Male', value: 42, count: 957 },
-        { name: 'Other', value: 4, count: 92 }
-      ],
-      ageGroups: [
-        { name: 'Pediatrics (0-12)', value: 18 },
-        { name: 'Teens (13-19)', value: 12 },
-        { name: 'Adults (20-44)', value: 38 },
-        { name: 'Middle-Aged (45-64)', value: 20 },
-        { name: 'Geriatrics (65+)', value: 12 }
-      ]
-    };
+    const patientsData = await prisma.patient.findMany({
+      select: { dob: true, gender: true }
+    }).catch(() => []);
+
+    // Calculate dynamic gender demographics safely
+    let female = 0;
+    let male = 0;
+    let other = 0;
+    for (const p of patientsData) {
+      const g = (p.gender || '').toLowerCase().trim();
+      if (g.startsWith('f')) female++;
+      else if (g.startsWith('m')) male++;
+      else other++;
+    }
+    const total = patientsData.length || 1;
+    const genderDist = [
+      { name: 'Female', value: parseFloat(((female / total) * 100).toFixed(1)), count: female },
+      { name: 'Male', value: parseFloat(((male / total) * 100).toFixed(1)), count: male },
+      { name: 'Other', value: parseFloat(((other / total) * 100).toFixed(1)), count: other }
+    ];
+
+    // Calculate dynamic age demographics safely
+    let pediatrics = 0; // 0-12
+    let teens = 0; // 13-19
+    let adults = 0; // 20-44
+    let middleAged = 0; // 45-64
+    let geriatrics = 0; // 65+
+
+    const currentYear = new Date().getFullYear();
+    for (const p of patientsData) {
+      if (!p.dob) {
+        adults++;
+        continue;
+      }
+      const birthYear = parseInt(p.dob.split('-')[0]);
+      if (isNaN(birthYear)) {
+        adults++;
+        continue;
+      }
+      const age = currentYear - birthYear;
+      if (age <= 12) pediatrics++;
+      else if (age <= 19) teens++;
+      else if (age <= 44) adults++;
+      else if (age <= 64) middleAged++;
+      else geriatrics++;
+    }
+
+    const ageTotal = patientsData.length || 1;
+    const ageGroupsDist = [
+      { name: 'Pediatrics (0-12)', value: parseFloat(((pediatrics / ageTotal) * 100).toFixed(1)) },
+      { name: 'Teens (13-19)', value: parseFloat(((teens / ageTotal) * 100).toFixed(1)) },
+      { name: 'Adults (20-44)', value: parseFloat(((adults / ageTotal) * 100).toFixed(1)) },
+      { name: 'Middle-Aged (45-64)', value: parseFloat(((middleAged / ageTotal) * 100).toFixed(1)) },
+      { name: 'Geriatrics (65+)', value: parseFloat(((geriatrics / ageTotal) * 100).toFixed(1)) }
+    ];
 
     res.json({
       growthTrend,
-      demographics
+      demographics: {
+        gender: genderDist,
+        ageGroups: ageGroupsDist
+      }
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -193,10 +278,29 @@ router.get('/appointment-trends', biAuth, async (req: Request, res: Response) =>
       { hour: '05:00 PM', checkins: 10, waitTimeMin: 8 }
     ];
 
+    // Compute status rates dynamically from database
+    const completed = await prisma.appointment.count({
+      where: { status: { in: ['COMPLETED', 'Completed', 'completed'] } }
+    }).catch(() => 0);
+
+    const cancelled = await prisma.appointment.count({
+      where: { status: { in: ['CANCELLED', 'Cancelled', 'cancelled'] } }
+    }).catch(() => 0);
+
+    const noShow = await prisma.appointment.count({
+      where: { status: { in: ['NOSHOW', 'No-Show', 'NoShow', 'noshow'] } }
+    }).catch(() => 0);
+
+    const scheduled = await prisma.appointment.count({
+      where: { status: { in: ['SCHEDULED', 'Scheduled', 'scheduled', 'pending', 'PENDING'] } }
+    }).catch(() => 0);
+
+    const totalApps = completed + cancelled + noShow + scheduled || 1;
+
     const statusRates = [
-      { name: 'Completed Consultations', value: 85 },
-      { name: 'Cancellations', value: 8 },
-      { name: 'No-Show Rate', value: 7 }
+      { name: 'Completed Consultations', value: parseFloat(((completed / totalApps) * 100).toFixed(1)) },
+      { name: 'Cancellations', value: parseFloat(((cancelled / totalApps) * 100).toFixed(1)) },
+      { name: 'No-Show Rate', value: parseFloat(((noShow / totalApps) * 100).toFixed(1)) }
     ];
 
     res.json({
@@ -276,11 +380,26 @@ router.post('/scheduled-reports', biAuth, (req: Request, res: Response) => {
     return;
   }
 
+  // Robust validation
+  const sanitizedTitle = String(title).trim();
+  const sanitizedRecipient = String(recipientEmail).trim().toLowerCase();
+  
+  if (sanitizedTitle.length < 3) {
+    res.status(400).json({ error: 'Report title must be at least 3 characters long' });
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(sanitizedRecipient)) {
+    res.status(400).json({ error: 'Invalid recipient email address format' });
+    return;
+  }
+
   const newReport = LocalStoreService.addScheduledReport({
-    title,
+    title: sanitizedTitle,
     type,
     frequency,
-    recipientEmail,
+    recipientEmail: sanitizedRecipient,
     active: true
   });
   res.status(201).json(newReport);
