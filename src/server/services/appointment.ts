@@ -27,13 +27,24 @@ export class AppointmentService {
       throw new AppError('The selected patient profile was not found', 404);
     }
 
-    // 3. Double-Booking Check (Doctor Availability)
-    const overlap = await AppointmentRepository.checkOverlap(doctorId, date, time);
-    if (overlap) {
-      throw new AppError(`Dr. ${doctor.name} is already booked at ${time} on ${date}. Please select another time slot.`, 400);
+    // 3. Double-Booking Check (Doctor Availability) & Creation wrapped in strict transaction
+    let created;
+    try {
+      created = await prisma.$transaction(async (tx) => {
+        const overlap = await AppointmentRepository.checkOverlap(doctorId, date, time, undefined, tx);
+        if (overlap) {
+          throw new AppError(`Dr. ${doctor.name} is already booked at ${time} on ${date}. Please select another time slot.`, 400);
+        }
+        return AppointmentRepository.create({ ...input, clinicId }, tx);
+      }, {
+        isolationLevel: 'Serializable',
+      });
+    } catch (error: any) {
+      if (error.code === 'P2034' || error.message?.includes('serialization') || error.message?.includes('deadlock')) {
+        throw new AppError('The selected time slot is no longer available due to a concurrent booking. Please try again.', 400);
+      }
+      throw error;
     }
-
-    const created = await AppointmentRepository.create({ ...input, clinicId });
 
     // Broadcast appointment creation in real-time
     if (created.clinicId) {
@@ -118,23 +129,19 @@ export class AppointmentService {
     const timeVal = input.time ?? appointment.time;
 
     // Check if we are updating doctor/date/time and verify double booking
-    if (
+    const needsOverlapCheck = (
       (input.doctorId !== undefined && input.doctorId !== appointment.doctorId) ||
       (input.date !== undefined && input.date !== appointment.date) ||
       (input.time !== undefined && input.time !== appointment.time)
-    ) {
+    );
+
+    if (needsOverlapCheck) {
       // 1. Verify doctor role if doctor updated
       if (input.doctorId !== undefined) {
         const doctor = await UserRepository.findById(docId);
         if (!doctor || doctor.role !== 'doctor') {
           throw new AppError('The assigned doctor was not found or is invalid', 404);
         }
-      }
-
-      // 2. Double-Booking Check
-      const overlap = await AppointmentRepository.checkOverlap(docId, dateVal, timeVal, id);
-      if (overlap) {
-        throw new AppError(`The selected doctor is already booked at ${timeVal} on ${dateVal}. Please select another time slot.`, 400);
       }
     }
 
@@ -146,7 +153,26 @@ export class AppointmentService {
       }
     }
 
-    const updated = await AppointmentRepository.update(id, input);
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        if (needsOverlapCheck) {
+          // 2. Double-Booking Check
+          const overlap = await AppointmentRepository.checkOverlap(docId, dateVal, timeVal, id, tx);
+          if (overlap) {
+            throw new AppError(`The selected doctor is already booked at ${timeVal} on ${dateVal}. Please select another time slot.`, 400);
+          }
+        }
+        return AppointmentRepository.update(id, input, tx);
+      }, {
+        isolationLevel: 'Serializable',
+      });
+    } catch (error: any) {
+      if (error.code === 'P2034' || error.message?.includes('serialization') || error.message?.includes('deadlock')) {
+        throw new AppError('The selected time slot is no longer available due to a concurrent booking. Please try again.', 400);
+      }
+      throw error;
+    }
 
     // Broadcast appointment update in real-time
     if (updated.clinicId) {

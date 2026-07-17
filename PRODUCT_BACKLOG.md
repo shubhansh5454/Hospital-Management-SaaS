@@ -426,7 +426,7 @@ Identified functional errors requiring immediate remediation.
 * **Acceptance Criteria**:
   1. Wraps schedule operations in strict database transaction locks.
   2. Aborts transaction and informs the user if a slot is booked concurrently by another receptionist.
-* **Status**: Todo
+* **Status**: Done
 
 ---
 
@@ -516,7 +516,7 @@ The backlog sorted by implementation order to guide developers during active spr
    │ [US-201] Quick Patient Booking & Scheduling             │ (Done)
    │ [FEAT-401] Patient Invoicing & Billing Module           │ (In Progress)
    │ [US-401] Invoicing & Payment Collection                 │ (In Progress)
-   │ [BUG-005] Calendar Double-Booking Race Condition        │ (Todo)
+   │ [BUG-005] Calendar Double-Booking Race Condition        │ (Done)
    └───────────────────────────┬─────────────────────────────┘
                                │
                                ▼

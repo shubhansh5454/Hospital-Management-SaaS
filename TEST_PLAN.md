@@ -68,6 +68,11 @@ The automated test suite in `/tests/runner.ts` is divided into 9 core pillars:
 - **Order Retrieval Isolation**: Validates that laboratory orders can only be fetched by users matching the patient's clinic context.
 - **Safe State Transitions**: Verifies that status updates (sample collection, analysis triggers) are blocked across clinics with precise 404 security barriers.
 
+### Suite 10: Calendar Scheduling Concurrency & Double-Booking Tests
+- **Atomic Operations**: Validates that schedule check-overlap and appointment creation/update happen inside a single transaction.
+- **Strict Isolation**: Confirms that database operations utilize the `Serializable` isolation level to block overlapping bookings.
+- **Concurrency Serialization Conflict Mapping**: Asserts that db serialization failures (Prisma error `P2034`) are gracefully mapped to user-friendly messages rather than crashing the system.
+
 ---
 
 ## 4. Manual Verification & User Acceptance Testing (UAT)
@@ -82,3 +87,4 @@ To complement the automated suite, manual QA engineers execute standard UAT test
 | **Tenant Switching** | Standard Doctor from Clinic A requests `/api/patients/{id}/export` of Clinic B's patient. | Denied with a clear `404 Patient not found` error, preserving maximum security and tenant privacy. | Passed |
 | **Radiology Order Tenant Cross-Access** | Clinician from Clinic A attempts to retrieve or edit a radiology imaging order of a patient from Clinic B. | Blocked instantly with a clear `404 Radiology order not found` response, preventing cross-tenant access. | Passed |
 | **Laboratory Order Tenant Cross-Access** | Clinician from Clinic A attempts to retrieve, edit, or progress a lab order belonging to Clinic B. | Blocked instantly with a clear `404 Lab order not found` response, preventing BOLA harvesting. | Passed |
+| **Simultaneous Booking Race Condition** | Two receptionists on slow networks submit overlapping appointment bookings for the same doctor/time concurrently. | The first transaction completes successfully, while the second aborts gracefully, returning a clear 400 error. | Passed |

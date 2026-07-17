@@ -90,8 +90,9 @@ export class AppointmentRepository {
     notes?: string;
     status?: string;
     clinicId?: number;
-  }) {
-    return prisma.appointment.create({
+  }, tx?: any) {
+    const client = tx || prisma;
+    return client.appointment.create({
       data: {
         patientId: data.patientId,
         doctorId: data.doctorId,
@@ -205,9 +206,11 @@ export class AppointmentRepository {
       reason?: string;
       notes?: string;
       status?: string;
-    }
+    },
+    tx?: any
   ) {
-    return prisma.appointment.update({
+    const client = tx || prisma;
+    return client.appointment.update({
       where: { id },
       data,
       include: {
@@ -238,9 +241,11 @@ export class AppointmentRepository {
     doctorId: number,
     date: string,
     time: string,
-    excludeId?: number
+    excludeId?: number,
+    tx?: any
   ) {
-    return prisma.appointment.findFirst({
+    const client = tx || prisma;
+    return client.appointment.findFirst({
       where: {
         doctorId,
         date,

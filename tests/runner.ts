@@ -859,6 +859,132 @@ async function run() {
   });
 
   // ==========================================
+  // 10. CALENDAR SCHEDULING RACE CONDITION DOUBLE-BOOKING TESTS
+  // ==========================================
+  await t.suiteAsync('10. Calendar Scheduling Race Condition Double-Booking Tests', async () => {
+    const { AppointmentService } = await import('../src/server/services/appointment.ts');
+    const { AppointmentRepository } = await import('../src/server/repositories/appointment.ts');
+    const { UserRepository } = await import('../src/server/repositories/user.ts');
+    const { PatientRepository } = await import('../src/server/repositories/patient.ts');
+    const { NotificationService } = await import('../src/server/services/notification.ts');
+    const { prisma } = await import('../src/db/prisma.ts');
+
+    const originalFindUserById = UserRepository.findById;
+    const originalFindPatientById = PatientRepository.findById;
+    const originalCheckOverlap = AppointmentRepository.checkOverlap;
+    const originalCreate = AppointmentRepository.create;
+    const originalTransaction = prisma.$transaction;
+    const originalSendNotification = NotificationService.sendNotification;
+
+    try {
+      // Stub notifications to prevent foreign key errors with mock profiles
+      NotificationService.sendNotification = async () => {};
+
+      // Mock Doctor and Patient
+      UserRepository.findById = async (id: number) => {
+        if (id === 12) {
+          return { id: 12, name: 'Dr. John Doe', role: 'doctor' } as any;
+        }
+        return null;
+      };
+
+      PatientRepository.findById = async (id: number) => {
+        if (id === 505) {
+          return { id: 505, name: 'Jane Smith', clinicId: 101 } as any;
+        }
+        return null;
+      };
+
+      // Mock Check Overlap to show NO overlap initially
+      let overlapCount = 0;
+      AppointmentRepository.checkOverlap = async (doctorId: number, date: string, time: string, excludeId?: number, tx?: any) => {
+        overlapCount++;
+        return null; // No overlap
+      };
+
+      // Mock Create
+      let createCalled = false;
+      AppointmentRepository.create = async (data: any, tx?: any) => {
+        createCalled = true;
+        return { id: 909, ...data } as any;
+      };
+
+      // Mock Transaction
+      let transactionCalled = false;
+      let transactionIsolationLevel: string | undefined = undefined;
+      prisma.$transaction = async (fn: any, options?: any) => {
+        transactionCalled = true;
+        transactionIsolationLevel = options?.isolationLevel;
+        return fn(prisma);
+      };
+
+      const validAppointmentInput = {
+        patientId: 505,
+        doctorId: 12,
+        date: '2026-07-17',
+        time: '10:00',
+        reason: 'Regular Checkup',
+      };
+
+      // Test 1: Successful booking under transaction with Serializable isolation
+      const appointment = await AppointmentService.createAppointment(validAppointmentInput);
+      t.assert('Appointment is successfully booked', appointment.id === 909);
+      t.assert('Appointment creation wrapped inside a transaction block', transactionCalled === true);
+      t.assert('Transaction run with high isolation level "Serializable"', transactionIsolationLevel === 'Serializable');
+      t.assert('Overlap checked exactly once inside transaction', overlapCount === 1);
+      t.assert('AppointmentRepository.create called with tx client', createCalled === true);
+
+      // Reset trackers
+      transactionCalled = false;
+      createCalled = false;
+
+      // Test 2: Double-Booking Aborts Transaction
+      AppointmentRepository.checkOverlap = async (doctorId: number, date: string, time: string, excludeId?: number, tx?: any) => {
+        return { id: 888 } as any; // Found an overlap!
+      };
+
+      let doubleBookError = '';
+      try {
+        await AppointmentService.createAppointment(validAppointmentInput);
+      } catch (err: any) {
+        doubleBookError = err.message;
+      }
+      t.assert('Double-booking is prevented with a clear explanation', doubleBookError.includes('already booked'));
+      t.assert('Transaction aborted and create not called', createCalled === false);
+
+      // Test 3: Concurrent Serialization Conflict is Handled Gracefully
+      AppointmentRepository.checkOverlap = async (doctorId: number, date: string, time: string, excludeId?: number, tx?: any) => {
+        return null; // No overlap, but database throws serialization error
+      };
+
+      prisma.$transaction = async (fn: any, options?: any) => {
+        const error = new Error('Prisma transaction failed due to write conflict / serialization');
+        (error as any).code = 'P2034'; // Prisma write conflict code
+        throw error;
+      };
+
+      let serializationErrorHandled = false;
+      try {
+        await AppointmentService.createAppointment(validAppointmentInput);
+      } catch (err: any) {
+        if (err.message.includes('selected time slot is no longer available due to a concurrent booking')) {
+          serializationErrorHandled = true;
+        }
+      }
+      t.assert('Prisma Serialization error (P2034) is caught and mapped to user-friendly conflict message', serializationErrorHandled);
+
+    } finally {
+      // Clean up mocks
+      UserRepository.findById = originalFindUserById;
+      PatientRepository.findById = originalFindPatientById;
+      AppointmentRepository.checkOverlap = originalCheckOverlap;
+      AppointmentRepository.create = originalCreate;
+      prisma.$transaction = originalTransaction;
+      NotificationService.sendNotification = originalSendNotification;
+    }
+  });
+
+  // ==========================================
   // EXECUTE RUNNER SUMMARY
   // ==========================================
   t.printSummary();

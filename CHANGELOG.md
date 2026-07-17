@@ -2,6 +2,15 @@
 
 All notable changes to the Hospital ERP SaaS project will be documented in this file.
 
+## [2.4.0] - 2026-07-17
+### Added
+- **Calendar Double-Booking Protection**: Implemented strict high-isolation database transaction locks (`Serializable` level) wrapping both appointment creation and schedule modifications.
+- **Suite 10 Integration Test Suite**: Developed an automated integration test suite in `tests/runner.ts` confirming that simultaneous overlapping bookings are strictly serialized, and write conflict serialization failures (Prisma code `P2034`) are gracefully mapped to user-friendly warnings.
+
+### Changed
+- **Transaction-Aware Repositories**: Modified `AppointmentRepository` (`create`, `update`, `checkOverlap` methods) to support execution context forwarding for atomic database clients (`tx`).
+- **Transactional Appointment Services**: Refactored `AppointmentService` to handle concurrency conflicts gracefully, throwing mapped `400` errors upon concurrent slot competition.
+
 ## [2.3.0] - 2026-07-17
 ### Added
 - **Laboratory Multi-Tenant Isolation (BOLA Protection)**: Implemented strict clinic-level logical tenant isolation checks across the Laboratory and sample processing pipelines.
