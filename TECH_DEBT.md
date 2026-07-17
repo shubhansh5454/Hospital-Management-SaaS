@@ -21,3 +21,7 @@ This document logs identified tech debt, performance bottlenecks, and architectu
 *   **Description:** The print layout generated for the C-CDA clinical summary imports the Tailwind CSS framework dynamically from a public CDN (`cdn.tailwindcss.com`) in the print window's iframe.
 *   **Impact:** In network-isolated, HIPAA-hardened, or strict clinical intranet firewalls common in enterprise hospital groups, the print-out preview might fail to render custom layout structures if outside domains are blocked.
 *   **Remediation:** Inline a self-contained, pre-compiled structural print stylesheet directly in the HTML compiler instead of relying on external scripts.
+
+## 5. Completed Reviews & Safe Defences (Refined July 2026)
+*   **Status:** Resolved. Addressed potential asynchronous state race conditions in `Patients.tsx` where clinical export records may be triggered on undefined/changing states, securing client-server state continuity.
+

@@ -11,6 +11,7 @@ All notable changes to the Hospital ERP SaaS project will be documented in this 
 ### Changed
 - **Sandbox-Compatible Printing**: Refactored C-CDA printing logic in the frontend Patients modal to use a dynamic, hidden iframe print flow, avoiding popup blocks inside standard iframe embedding.
 - **Backlog Management**: Initialized and updated `/PROJECT_BACKLOG.md`, `/ARCHITECTURE_DECISIONS.md`, `/CHANGELOG.md`, and `/TECH_DEBT.md` records.
+- **Robust Clinical Export Handlers**: Added optional chaining and safe string-slug fallbacks in frontend print and download triggers during post-implementation architectural code review to prevent asynchronous state inconsistencies.
 
 ## [2.0.0] - Previous Sessions
 ### Added

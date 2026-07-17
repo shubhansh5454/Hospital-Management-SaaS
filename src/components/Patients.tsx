@@ -79,18 +79,19 @@ export default function Patients() {
   };
 
   const handleDownloadJson = () => {
-    if (!exportedData) return;
+    if (!exportedData || !exportPatient) return;
     const blob = new Blob([JSON.stringify(exportedData.fhirBundle, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `fhir-patient-${exportPatient.name.toLowerCase().replace(/\s+/g, '-')}.json`;
+    const patientSlug = (exportPatient.name || 'patient').toLowerCase().replace(/\s+/g, '-');
+    a.download = `fhir-patient-${patientSlug}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const handlePrintCcda = () => {
-    if (!exportedData) return;
+    if (!exportedData || !exportPatient) return;
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
@@ -106,10 +107,12 @@ export default function Patients() {
       return;
     }
 
+    const patientName = exportPatient.name || 'Patient';
+
     iframeDoc.write(`
       <html>
         <head>
-          <title>Continuity of Care Document - ${exportPatient.name}</title>
+          <title>Continuity of Care Document - ${patientName}</title>
           <script src="https://cdn.tailwindcss.com"></script>
         </head>
         <body class="p-8 bg-white">
@@ -134,12 +137,13 @@ export default function Patients() {
   };
 
   const handleDownloadCcda = () => {
-    if (!exportedData) return;
+    if (!exportedData || !exportPatient) return;
     const blob = new Blob([exportedData.ccdaSummary], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ccda-${exportPatient.name.toLowerCase().replace(/\s+/g, '-')}.html`;
+    const patientSlug = (exportPatient.name || 'patient').toLowerCase().replace(/\s+/g, '-');
+    a.download = `ccda-${patientSlug}.html`;
     a.click();
     URL.revokeObjectURL(url);
   };

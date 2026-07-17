@@ -69,4 +69,5 @@ To complement the automated suite, manual QA engineers execute standard UAT test
 | :--- | :--- | :--- | :--- |
 | **Print C-CDA Summary** | Click *Export (FHIR/CCDA)* button, switch to *C-CDA* tab, select *Print Summary*. | Launches system print screen using a sandboxed iframe without being blocked by popup settings. | Passed |
 | **Download Patient History** | Click *Download FHIR Bundle* or *Download CCDA*. | Generates a valid file download stream with appropriate JSON or HTML mime-types. | Passed |
+| **Defensive State Verification** | Trigger export while patient context changes or is unloaded. | Prevents javascript errors gracefully using optional chaining on export triggers. | Passed |
 | **Tenant Switching** | Standard Doctor from Clinic A requests `/api/patients/{id}/export` of Clinic B's patient. | Denied with a clear `404 Patient not found` error, preserving maximum security and tenant privacy. | Passed |
